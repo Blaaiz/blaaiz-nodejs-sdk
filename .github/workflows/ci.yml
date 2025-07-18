@@ -148,6 +148,8 @@ jobs:
     
     - name: Publish to npm
       env:
+        BLAAIZ_API_KEY: ${{ secrets.BLAAIZ_API_KEY }}
+        BLAAIZ_WEBHOOK_SECRET: ${{ secrets.BLAAIZ_WEBHOOK_SECRET }}
         NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
       run: npm publish --access public
 
