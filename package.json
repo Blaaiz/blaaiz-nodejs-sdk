@@ -1,6 +1,6 @@
 {
   "name": "blaaiz-nodejs-sdk",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "Official Node.js SDK for Blaaiz RaaS (Remittance as a Service) API",
   "main": "index.js",
   "types": "index.d.ts",
