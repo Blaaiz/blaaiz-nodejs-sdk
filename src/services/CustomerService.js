@@ -145,12 +145,12 @@ class CustomerService {
         liveness_check: 'liveness_check_file',
         proof_of_address: 'proof_of_address_file'
       }
-      
+
       const fileFieldName = fileFieldMapping[file_category] // eslint-disable-line camelcase
       if (!fileFieldName) {
-        throw new Error(`Unknown file category: ${file_category}`)
+        throw new Error(`Unknown file category: ${file_category}`) // eslint-disable-line camelcase
       }
-      
+
       const fileAssociation = await this.client.makeRequest('POST', `/api/external/customer/${customerId}/files`, {
         [fileFieldName]: file_id // eslint-disable-line camelcase
       })
@@ -214,7 +214,7 @@ class CustomerService {
               reject(new Error('S3 upload failed: No ETag received from S3'))
               return
             }
-            
+
             resolve({
               status: res.statusCode,
               data: responseData,
