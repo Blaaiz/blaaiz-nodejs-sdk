@@ -216,9 +216,10 @@ export interface FileUploadData {
 }
 
 export interface PreSignedUrlResponse {
-  url: string;
+  message: string;
   file_id: string;
-  headers: { [key: string]: string };
+  url: string;
+  headers: any[];
 }
 
 // Webhook Types

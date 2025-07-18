@@ -56,10 +56,10 @@ describe('Service classes validate input and call makeRequest', () => {
 
       const mockPresignedResponse = {
         data: {
-          data: {
-            url: 'https://s3.amazonaws.com/bucket/file',
-            file_id: 'file-123'
-          }
+          message: 'Url generated successfully',
+          url: 'https://s3.amazonaws.com/bucket/file',
+          file_id: 'file-123',
+          headers: []
         }
       }
 
@@ -83,10 +83,10 @@ describe('Service classes validate input and call makeRequest', () => {
 
       const mockPresignedResponse = {
         data: {
-          data: {
-            url: 'https://s3.amazonaws.com/bucket/file',
-            file_id: 'file-123'
-          }
+          message: 'Url generated successfully',
+          url: 'https://s3.amazonaws.com/bucket/file',
+          file_id: 'file-123',
+          headers: []
         }
       }
 
@@ -112,7 +112,7 @@ describe('Service classes validate input and call makeRequest', () => {
         undefined
       )
 
-      expect(client.makeRequest).toHaveBeenCalledWith('PUT', '/api/external/customer/cust-123/files', {
+      expect(client.makeRequest).toHaveBeenCalledWith('POST', '/api/external/customer/cust-123/files', {
         id_file: 'file-123'
       })
 
@@ -128,10 +128,10 @@ describe('Service classes validate input and call makeRequest', () => {
 
       const mockPresignedResponse = {
         data: {
-          data: {
-            url: 'https://s3.amazonaws.com/bucket/file',
-            file_id: 'file-123'
-          }
+          message: 'Url generated successfully',
+          url: 'https://s3.amazonaws.com/bucket/file',
+          file_id: 'file-123',
+          headers: []
         }
       }
 
@@ -171,10 +171,10 @@ describe('Service classes validate input and call makeRequest', () => {
 
       const mockPresignedResponse = {
         data: {
-          data: {
-            url: 'https://s3.amazonaws.com/bucket/file',
-            file_id: 'file-123'
-          }
+          message: 'Url generated successfully',
+          url: 'https://s3.amazonaws.com/bucket/file',
+          file_id: 'file-123',
+          headers: []
         }
       }
 
@@ -208,10 +208,10 @@ describe('Service classes validate input and call makeRequest', () => {
 
       const mockPresignedResponse = {
         data: {
-          data: {
-            url: 'https://s3.amazonaws.com/bucket/file',
-            file_id: 'file-123'
-          }
+          message: 'Url generated successfully',
+          url: 'https://s3.amazonaws.com/bucket/file',
+          file_id: 'file-123',
+          headers: []
         }
       }
 
@@ -255,10 +255,10 @@ describe('Service classes validate input and call makeRequest', () => {
 
       const mockPresignedResponse = {
         data: {
-          data: {
-            url: 'https://s3.amazonaws.com/bucket/file',
-            file_id: 'file-123'
-          }
+          message: 'Url generated successfully',
+          url: 'https://s3.amazonaws.com/bucket/file',
+          file_id: 'file-123',
+          headers: []
         }
       }
 

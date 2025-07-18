@@ -80,7 +80,23 @@ class CustomerService {
         file_category // eslint-disable-line camelcase
       })
 
-      const { url: presignedUrl, file_id } = presignedResponse.data.data // eslint-disable-line camelcase
+      // Handle API response structure: {"data": {"message": "...", "file_id": "...", "url": "..."}}
+      let presignedUrl, file_id // eslint-disable-line camelcase
+      if (presignedResponse.data && presignedResponse.data.url && presignedResponse.data.file_id) {
+        // Structure: {"data": {"message": "...", "file_id": "...", "url": "..."}}
+        presignedUrl = presignedResponse.data.url
+        file_id = presignedResponse.data.file_id // eslint-disable-line camelcase
+      } else if (presignedResponse.url && presignedResponse.file_id) {
+        // Direct structure from API docs
+        presignedUrl = presignedResponse.url
+        file_id = presignedResponse.file_id // eslint-disable-line camelcase
+      } else if (presignedResponse.data && presignedResponse.data.data) {
+        // Nested structure: {"data": {"data": {"url": "...", "file_id": "..."}}}
+        presignedUrl = presignedResponse.data.data.url
+        file_id = presignedResponse.data.data.file_id // eslint-disable-line camelcase
+      } else {
+        throw new Error(`Invalid presigned URL response structure. Expected 'url' and 'file_id' keys. Got: ${JSON.stringify(presignedResponse)}`)
+      }
 
       let fileBuffer
       if (Buffer.isBuffer(file)) {
@@ -123,8 +139,20 @@ class CustomerService {
 
       await this._uploadToS3(presignedUrl, fileBuffer, contentType, filename)
 
-      const fileAssociation = await this.client.makeRequest('PUT', `/api/external/customer/${customerId}/files`, {
-        id_file: file_id // eslint-disable-line camelcase
+      // Map file category to the correct field name expected by Laravel API
+      const fileFieldMapping = {
+        identity: 'id_file',
+        liveness_check: 'liveness_check_file',
+        proof_of_address: 'proof_of_address_file'
+      }
+      
+      const fileFieldName = fileFieldMapping[file_category] // eslint-disable-line camelcase
+      if (!fileFieldName) {
+        throw new Error(`Unknown file category: ${file_category}`)
+      }
+      
+      const fileAssociation = await this.client.makeRequest('POST', `/api/external/customer/${customerId}/files`, {
+        [fileFieldName]: file_id // eslint-disable-line camelcase
       })
 
       return {
@@ -133,7 +161,14 @@ class CustomerService {
         presigned_url: presignedUrl
       }
     } catch (error) {
-      throw new Error(`File upload failed: ${error.message}`)
+      // Provide better error information for debugging
+      if (error.message && error.message.includes('File upload failed:')) {
+        // Re-throw if already wrapped
+        throw error
+      } else {
+        // Wrap other exceptions with context
+        throw new Error(`File upload failed: ${error.message}`)
+      }
     }
   }
 
@@ -173,9 +208,17 @@ class CustomerService {
 
         res.on('end', () => {
           if (res.statusCode >= 200 && res.statusCode < 300) {
+            // Verify S3 upload success by checking for ETag
+            const etag = res.headers.etag || res.headers.ETag
+            if (!etag) {
+              reject(new Error('S3 upload failed: No ETag received from S3'))
+              return
+            }
+            
             resolve({
               status: res.statusCode,
-              data: responseData
+              data: responseData,
+              etag
             })
           } else {
             reject(new Error(`S3 upload failed with status ${res.statusCode}: ${responseData}`))
