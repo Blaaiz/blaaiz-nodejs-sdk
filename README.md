@@ -634,6 +634,7 @@ const blaaiz = new Blaaiz(process.env.BLAAIZ_API_KEY, {
 - `BLAAIZ_API_KEY` - Your API key
 - `BLAAIZ_API_URL` - API base URL (optional, defaults to dev)
 - `BLAAIZ_WEBHOOK_SECRET` - Webhook secret for signature verification
+- `BLAAIZ_TEST_WALLET_ID` - Test wallet ID for integration tests (optional)
 
 **.env file example:**
 ```bash
@@ -641,6 +642,7 @@ const blaaiz = new Blaaiz(process.env.BLAAIZ_API_KEY, {
 BLAAIZ_API_KEY=your-dev-api-key
 BLAAIZ_API_URL=https://api-dev.blaaiz.com
 BLAAIZ_WEBHOOK_SECRET=your-webhook-secret
+BLAAIZ_TEST_WALLET_ID=your-test-wallet-id
 
 # Production
 # BLAAIZ_API_KEY=your-prod-api-key
