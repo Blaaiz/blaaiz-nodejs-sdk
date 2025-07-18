@@ -97,6 +97,39 @@ const updatedCustomer = await blaaiz.customers.update('customer-id', {
 
 #### Upload Customer Documents
 
+**Method 1: Complete File Upload (Recommended)**
+```javascript
+// Option A: Upload from Buffer
+const result = await blaaiz.customers.uploadFileComplete('customer-id', {
+  file: fileBuffer, // Buffer or Uint8Array
+  file_category: 'identity', // identity, proof_of_address, liveness_check
+  filename: 'passport.jpg', // Optional
+  contentType: 'image/jpeg' // Optional
+});
+
+// Option B: Upload from Base64 string
+const result = await blaaiz.customers.uploadFileComplete('customer-id', {
+  file: 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==',
+  file_category: 'identity'
+});
+
+// Option C: Upload from Data URL (with automatic content type detection)
+const result = await blaaiz.customers.uploadFileComplete('customer-id', {
+  file: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==',
+  file_category: 'identity'
+});
+
+// Option D: Upload from Public URL (automatically downloads and uploads)
+const result = await blaaiz.customers.uploadFileComplete('customer-id', {
+  file: 'https://example.com/documents/passport.jpg',
+  file_category: 'identity'
+});
+
+console.log('Upload complete:', result.data);
+console.log('File ID:', result.file_id);
+```
+
+**Method 2: Manual 3-Step Process**
 ```javascript
 // Step 1: Get pre-signed URL
 const presignedUrl = await blaaiz.files.getPresignedUrl({
@@ -112,6 +145,12 @@ const fileAssociation = await blaaiz.customers.uploadFiles('customer-id', {
   id_file: presignedUrl.data.file_id // Use the file_id from step 1
 });
 ```
+
+> **Note**: The `uploadFileComplete` method is recommended as it handles all three steps automatically: getting the pre-signed URL, uploading the file to S3, and associating the file with the customer. It supports multiple file input formats:
+> - **Buffer/Uint8Array**: Direct binary data
+> - **Base64 string**: Plain base64 encoded data
+> - **Data URL**: Complete data URL with mime type (e.g., `data:image/jpeg;base64,/9j/4AAQ...`)
+> - **Public URL**: HTTP/HTTPS URL that will be downloaded automatically (supports redirects, content-type detection, and filename extraction)
 
 ### Collections
 
@@ -417,49 +456,139 @@ The Blaaiz API has a rate limit of 100 requests per minute. The SDK automaticall
 
 ## Webhook Handling
 
-Example webhook handler for Express.js:
+### Webhook Signature Verification
+
+The SDK provides built-in webhook signature verification to ensure webhook authenticity:
+
+```javascript
+const { Blaaiz } = require('blaaiz-nodejs-sdk');
+
+const blaaiz = new Blaaiz('your-api-key');
+
+// Method 1: Verify signature manually
+const isValid = blaaiz.webhooks.verifySignature(
+  payload,        // Raw webhook payload (string or object)
+  signature,      // Signature from webhook headers
+  webhookSecret   // Your webhook secret key
+);
+
+if (isValid) {
+  console.log('Webhook signature is valid');
+} else {
+  console.log('Invalid webhook signature');
+}
+
+// Method 2: Construct verified event (recommended)
+try {
+  const event = blaaiz.webhooks.constructEvent(
+    payload,        // Raw webhook payload
+    signature,      // Signature from webhook headers  
+    webhookSecret   // Your webhook secret key
+  );
+  
+  console.log('Verified event:', event);
+  // event.verified will be true
+  // event.timestamp will contain verification timestamp
+} catch (error) {
+  console.error('Webhook verification failed:', error.message);
+}
+```
+
+### Complete Express.js Webhook Handler
 
 ```javascript
 const express = require('express');
+const { Blaaiz } = require('blaaiz-nodejs-sdk');
+
 const app = express();
+const blaaiz = new Blaaiz('your-api-key');
 
-app.use(express.json());
+// Webhook secret (get this from your Blaaiz dashboard)
+const WEBHOOK_SECRET = process.env.BLAAIZ_WEBHOOK_SECRET;
 
-// Collection webhook
+// Middleware to capture raw body for signature verification
+app.use('/webhooks', express.raw({ type: 'application/json' }));
+
+// Collection webhook with signature verification
 app.post('/webhooks/collection', (req, res) => {
-  const { transaction_id, status, amount, currency } = req.body;
+  const signature = req.headers['x-blaaiz-signature'];
+  const payload = req.body.toString();
   
-  console.log('Collection received:', {
-    transaction_id,
-    status,
-    amount,
-    currency
-  });
-  
-  // Process the collection
-  // Update your database, send notifications, etc.
-  
-  res.status(200).json({ received: true });
+  try {
+    // Verify webhook signature and construct event
+    const event = blaaiz.webhooks.constructEvent(payload, signature, WEBHOOK_SECRET);
+    
+    console.log('Verified collection event:', {
+      transaction_id: event.transaction_id,
+      status: event.status,
+      amount: event.amount,
+      currency: event.currency,
+      verified: event.verified
+    });
+    
+    // Process the collection
+    // Update your database, send notifications, etc.
+    
+    res.status(200).json({ received: true });
+  } catch (error) {
+    console.error('Webhook verification failed:', error.message);
+    res.status(400).json({ error: 'Invalid signature' });
+  }
 });
 
-// Payout webhook
+// Payout webhook with signature verification
 app.post('/webhooks/payout', (req, res) => {
-  const { transaction_id, status, recipient } = req.body;
+  const signature = req.headers['x-blaaiz-signature'];
+  const payload = req.body.toString();
   
-  console.log('Payout completed:', {
-    transaction_id,
-    status,
-    recipient
-  });
-  
-  // Process the payout completion
-  // Update your database, send notifications, etc.
-  
-  res.status(200).json({ received: true });
+  try {
+    // Verify webhook signature and construct event
+    const event = blaaiz.webhooks.constructEvent(payload, signature, WEBHOOK_SECRET);
+    
+    console.log('Verified payout event:', {
+      transaction_id: event.transaction_id,
+      status: event.status,
+      recipient: event.recipient,
+      verified: event.verified
+    });
+    
+    // Process the payout completion
+    // Update your database, send notifications, etc.
+    
+    res.status(200).json({ received: true });
+  } catch (error) {
+    console.error('Webhook verification failed:', error.message);
+    res.status(400).json({ error: 'Invalid signature' });
+  }
 });
 
 app.listen(3000, () => {
   console.log('Webhook server running on port 3000');
+});
+```
+
+### Manual Signature Verification (Alternative)
+
+If you prefer manual verification:
+
+```javascript
+app.post('/webhooks/collection', (req, res) => {
+  const signature = req.headers['x-blaaiz-signature'];
+  const payload = req.body.toString();
+  
+  // Verify signature manually
+  const isValid = blaaiz.webhooks.verifySignature(payload, signature, WEBHOOK_SECRET);
+  
+  if (!isValid) {
+    console.error('Invalid webhook signature');
+    return res.status(400).json({ error: 'Invalid signature' });
+  }
+  
+  // Parse payload manually
+  const event = JSON.parse(payload);
+  console.log('Collection received:', event);
+  
+  res.status(200).json({ received: true });
 });
 ```
 
@@ -481,12 +610,14 @@ const blaaizProd = new Blaaiz('prod-api-key', {
 
 1. **Always validate customer data before creating customers**
 2. **Use the fees API to calculate and display fees to users**
-3. **Implement proper webhook signature verification** (when available)
+3. **Always verify webhook signatures using the SDK's built-in methods**
 4. **Store customer IDs and transaction IDs for tracking**
 5. **Handle rate limiting gracefully with exponential backoff**
-6. **Use environment variables for API keys**
+6. **Use environment variables for API keys and webhook secrets**
 7. **Implement proper error handling and logging**
-8. **Test webhook endpoints thoroughly**
+8. **Test webhook endpoints thoroughly with signature verification**
+9. **Use raw body parsing for webhook endpoints to preserve signature integrity**
+10. **Return appropriate HTTP status codes from webhook handlers (200 for success, 400 for invalid signatures)**
 
 ## Support
 

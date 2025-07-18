@@ -48,6 +48,13 @@ export interface CustomerFileData {
   liveness_check_file?: string;
 }
 
+export interface FileUploadOptions {
+  file: Buffer | Uint8Array | string;
+  file_category: 'identity' | 'proof_of_address' | 'liveness_check';
+  filename?: string;
+  contentType?: string;
+}
+
 // Collection Types
 export interface CollectionData {
   method: 'open_banking' | 'card' | 'bank_transfer' | 'crypto';
@@ -224,6 +231,12 @@ export interface WebhookReplayData {
   transaction_id: string;
 }
 
+export interface WebhookEvent {
+  [key: string]: any;
+  verified: boolean;
+  timestamp: string;
+}
+
 // Service Classes
 export declare class CustomerService {
   constructor(client: any);
@@ -233,6 +246,7 @@ export declare class CustomerService {
   update(customerId: string, updateData: Partial<CustomerData>): Promise<BlaaizResponse<Customer>>;
   addKYC(customerId: string, kycData: CustomerKYCData): Promise<BlaaizResponse<any>>;
   uploadFiles(customerId: string, fileData: CustomerFileData): Promise<BlaaizResponse<any>>;
+  uploadFileComplete(customerId: string, fileOptions: FileUploadOptions): Promise<BlaaizResponse<any>>;
 }
 
 export declare class CollectionService {
@@ -294,6 +308,8 @@ export declare class WebhookService {
   get(): Promise<BlaaizResponse<WebhookData>>;
   update(webhookData: Partial<WebhookData>): Promise<BlaaizResponse<any>>;
   replay(replayData: WebhookReplayData): Promise<BlaaizResponse<any>>;
+  verifySignature(payload: string | object, signature: string, secret: string): boolean;
+  constructEvent(payload: string | object, signature: string, secret: string): WebhookEvent;
 }
 
 // Main SDK Class
