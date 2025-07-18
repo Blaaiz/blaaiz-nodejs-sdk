@@ -13,11 +13,16 @@ npm install blaaiz-nodejs-sdk
 ```javascript
 const { Blaaiz } = require('blaaiz-nodejs-sdk');
 
-// Initialize the SDK
+// Initialize the SDK (defaults to development environment)
 const blaaiz = new Blaaiz('your-api-key-here', {
   baseURL: 'https://api-dev.blaaiz.com', // Optional: defaults to dev environment
   timeout: 30000 // Optional: request timeout in milliseconds
 });
+
+// For production, change the baseURL:
+// const blaaiz = new Blaaiz('your-prod-api-key', {
+//   baseURL: 'https://api.blaaiz.com'
+// });
 
 // Test the connection
 const isConnected = await blaaiz.testConnection();
@@ -594,16 +599,53 @@ app.post('/webhooks/collection', (req, res) => {
 
 ## Environment Configuration
 
+The SDK defaults to the development environment. To use different environments:
+
 ```javascript
-// Development
+// Development (default)
+const blaaizDev = new Blaaiz('dev-api-key');
+// OR explicitly specify dev URL
 const blaaizDev = new Blaaiz('dev-api-key', {
   baseURL: 'https://api-dev.blaaiz.com'
 });
 
-// Production (when available)
+// Production
 const blaaizProd = new Blaaiz('prod-api-key', {
   baseURL: 'https://api.blaaiz.com'
 });
+
+// Staging (if available)
+const blaaizStaging = new Blaaiz('staging-api-key', {
+  baseURL: 'https://api-staging.blaaiz.com'
+});
+```
+
+### Environment Variables Approach (Recommended)
+
+```javascript
+const { Blaaiz } = require('blaaiz-nodejs-sdk');
+
+const blaaiz = new Blaaiz(process.env.BLAAIZ_API_KEY, {
+  baseURL: process.env.BLAAIZ_API_URL || 'https://api-dev.blaaiz.com'
+});
+```
+
+**Environment Variables:**
+- `BLAAIZ_API_KEY` - Your API key
+- `BLAAIZ_API_URL` - API base URL (optional, defaults to dev)
+- `BLAAIZ_WEBHOOK_SECRET` - Webhook secret for signature verification
+
+**.env file example:**
+```bash
+# Development
+BLAAIZ_API_KEY=your-dev-api-key
+BLAAIZ_API_URL=https://api-dev.blaaiz.com
+BLAAIZ_WEBHOOK_SECRET=your-webhook-secret
+
+# Production
+# BLAAIZ_API_KEY=your-prod-api-key
+# BLAAIZ_API_URL=https://api.blaaiz.com
+# BLAAIZ_WEBHOOK_SECRET=your-prod-webhook-secret
 ```
 
 ## Best Practices
