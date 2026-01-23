@@ -4,7 +4,7 @@ class CollectionService {
   }
 
   async initiate (collectionData) {
-    const requiredFields = ['method', 'amount', 'wallet_id']
+    const requiredFields = ['customer_id', 'wallet_id', 'amount', 'currency', 'method']
     for (const field of requiredFields) {
       if (!collectionData[field]) {
         throw new Error(`${field} is required`)
@@ -31,6 +31,14 @@ class CollectionService {
 
   async getCryptoNetworks () {
     return this.client.makeRequest('GET', '/api/external/collection/crypto/networks')
+  }
+
+  async acceptInteracMoneyRequest (interacData) {
+    if (!interacData || !interacData.reference_number) {
+      throw new Error('reference_number is required')
+    }
+
+    return this.client.makeRequest('POST', '/api/external/collection/accept-interac-money-request', interacData)
   }
 }
 

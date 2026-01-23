@@ -4,14 +4,21 @@ class CustomerService {
   }
 
   async create (customerData) {
-    const requiredFields = ['first_name', 'last_name', 'type', 'email', 'country', 'id_type', 'id_number']
+    const requiredFields = ['type', 'email', 'country', 'id_type', 'id_number']
     for (const field of requiredFields) {
       if (!customerData[field]) {
         throw new Error(`${field} is required`)
       }
     }
 
-    if (customerData.type === 'business' && !customerData.business_name) {
+    if (customerData.type === 'individual') {
+      if (!customerData.first_name) {
+        throw new Error('first_name is required when type is individual')
+      }
+      if (!customerData.last_name) {
+        throw new Error('last_name is required when type is individual')
+      }
+    } else if (customerData.type === 'business' && !customerData.business_name) {
       throw new Error('business_name is required when type is business')
     }
 
@@ -48,6 +55,23 @@ class CustomerService {
       throw new Error('Customer ID is required')
     }
     return this.client.makeRequest('PUT', `/api/external/customer/${customerId}/files`, fileData)
+  }
+
+  async listBeneficiaries (customerId) {
+    if (!customerId) {
+      throw new Error('Customer ID is required')
+    }
+    return this.client.makeRequest('GET', `/api/external/customer/${customerId}/beneficiary`)
+  }
+
+  async getBeneficiary (customerId, beneficiaryId) {
+    if (!customerId) {
+      throw new Error('Customer ID is required')
+    }
+    if (!beneficiaryId) {
+      throw new Error('Beneficiary ID is required')
+    }
+    return this.client.makeRequest('GET', `/api/external/customer/${customerId}/beneficiary/${beneficiaryId}`)
   }
 
   async uploadFileComplete (customerId, fileOptions) {

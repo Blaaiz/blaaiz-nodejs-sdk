@@ -1,0 +1,8 @@
+{
+    "mcpServers": {
+        "BlaaizAPIDocs": {
+            "type": "http",
+            "url": "https://docs.business.blaaiz.com/mcp"
+        }
+    }
+}

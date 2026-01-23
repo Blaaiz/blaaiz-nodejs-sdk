@@ -32,12 +32,12 @@ console.log('API Connected:', isConnected);
 ## Features
 
 - **Customer Management**: Create, update, and manage customers with KYC verification
-- **Collections**: Support for multiple collection methods (Open Banking, Card, Crypto, Bank Transfer)
-- **Payouts**: Bank transfers and Interac payouts across multiple currencies
+- **Collections**: Support for multiple collection methods (Open Banking, Card, Crypto, Bank Transfer, Interac)
+- **Payouts**: Bank transfers, Interac, ACH, Wire, and Crypto payouts across multiple currencies
 - **Virtual Bank Accounts**: Create and manage virtual accounts for NGN collections
 - **Wallets**: Multi-currency wallet management
 - **Transactions**: Transaction history and status tracking
-- **Webhooks**: Webhook configuration and management
+- **Webhooks**: Webhook configuration and management with signature verification
 - **Files**: Document upload with pre-signed URLs
 - **Fees**: Real-time fee calculations and breakdowns
 - **Banks & Currencies**: Access to supported banks and currencies
@@ -51,8 +51,11 @@ console.log('API Connected:', isConnected);
 - **EUR/GBP**: Open Banking
 
 ### Payouts
-- **Bank Transfer**: All supported currencies
+- **Bank Transfer**: NGN, GBP, EUR
 - **Interac**: CAD transactions
+- **ACH**: USD transactions
+- **Wire**: USD transactions
+- **Crypto**: USDT, USDC on multiple networks
 
 ## API Reference
 
@@ -75,6 +78,8 @@ const customer = await blaaiz.customers.create({
 console.log('Customer ID:', customer.data.data.id);
 ```
 
+> **Note**: For `individual` type, `first_name` and `last_name` are required. For `business` type, `business_name` is required instead.
+
 #### Get Customer
 
 ```javascript
@@ -96,6 +101,20 @@ const updatedCustomer = await blaaiz.customers.update('customer-id', {
   first_name: "Jane",
   email: "jane.doe@example.com"
 });
+```
+
+#### List Customer Beneficiaries
+
+```javascript
+const beneficiaries = await blaaiz.customers.listBeneficiaries('customer-id');
+console.log('Beneficiaries:', beneficiaries.data);
+```
+
+#### Get Specific Beneficiary
+
+```javascript
+const beneficiary = await blaaiz.customers.getBeneficiary('customer-id', 'beneficiary-id');
+console.log('Beneficiary:', beneficiary.data);
 ```
 
 ### File Management & KYC
@@ -163,11 +182,16 @@ const fileAssociation = await blaaiz.customers.uploadFiles('customer-id', {
 
 ```javascript
 const collection = await blaaiz.collections.initiate({
-  method: "open_banking",
-  amount: 100.00,
   customer_id: "customer-id",
   wallet_id: "wallet-id",
-  phone: "+1234567890" // Optional
+  amount: 100.00,
+  currency: "EUR", // EUR, GBP, NGN, USD
+  method: "open_banking",
+  phone_number: "+1234567890", // Optional
+  email: "customer@example.com", // Optional
+  reference: "your-reference", // Optional
+  narration: "Payment description", // Optional
+  redirect_url: "https://your-site.com/callback" // Optional
 });
 
 console.log('Payment URL:', collection.data.url);
@@ -178,13 +202,32 @@ console.log('Transaction ID:', collection.data.transaction_id);
 
 ```javascript
 const collection = await blaaiz.collections.initiate({
-  method: "card",
-  amount: 5000,
   customer_id: "customer-id",
-  wallet_id: "wallet-id"
+  wallet_id: "wallet-id",
+  amount: 5000,
+  currency: "NGN",
+  method: "card"
 });
 
 console.log('Payment URL:', collection.data.url);
+```
+
+#### Accept Interac Money Request (CAD)
+
+```javascript
+// With security answer (standard transfer)
+const interac = await blaaiz.collections.acceptInteracMoneyRequest({
+  reference_number: "interac-reference",
+  security_answer: "answer",
+  email: "sender@example.com" // Optional
+});
+
+// Auto deposit (no security answer required)
+const interacAutoDeposit = await blaaiz.collections.acceptInteracMoneyRequest({
+  reference_number: "interac-reference"
+});
+
+console.log('Message:', interac.data.message);
 ```
 
 #### Crypto Collection
@@ -214,22 +257,54 @@ const attachment = await blaaiz.collections.attachCustomer({
 
 ### Payouts
 
-#### Bank Transfer Payout
+#### Bank Transfer Payout (NGN)
 
 ```javascript
 const payout = await blaaiz.payouts.initiate({
   wallet_id: "wallet-id",
   customer_id: "customer-id",
   method: "bank_transfer",
-  from_amount: 1000,
-  from_currency_id: "1", // NGN
-  to_currency_id: "1", // NGN
+  from_amount: 1000, // Use from_amount OR to_amount
+  from_currency_id: "NGN",
+  to_currency_id: "NGN",
+  bank_id: "bank-id", // Required for NGN
   account_number: "0123456789",
-  bank_id: "1", // Required for NGN
-  phone_number: "+2348012345678"
+  phone_number: "+2348012345678" // Optional
 });
 
 console.log('Payout Status:', payout.data.transaction.status);
+```
+
+#### Bank Transfer Payout (GBP)
+
+```javascript
+const gbpPayout = await blaaiz.payouts.initiate({
+  wallet_id: "wallet-id",
+  customer_id: "customer-id",
+  method: "bank_transfer",
+  from_amount: 100,
+  from_currency_id: "GBP",
+  to_currency_id: "GBP",
+  sort_code: "123456",
+  account_number: "12345678",
+  account_name: "John Doe"
+});
+```
+
+#### Bank Transfer Payout (EUR)
+
+```javascript
+const eurPayout = await blaaiz.payouts.initiate({
+  wallet_id: "wallet-id",
+  customer_id: "customer-id",
+  method: "bank_transfer",
+  from_amount: 100,
+  from_currency_id: "EUR",
+  to_currency_id: "EUR",
+  iban: "DE89370400440532013000",
+  bic_code: "COBADEFFXXX",
+  account_name: "John Doe"
+});
 ```
 
 #### Interac Payout (CAD)
@@ -240,11 +315,83 @@ const interacPayout = await blaaiz.payouts.initiate({
   customer_id: "customer-id",
   method: "interac",
   from_amount: 100,
-  from_currency_id: "2", // CAD
-  to_currency_id: "2", // CAD
+  from_currency_id: "CAD",
+  to_currency_id: "CAD",
   email: "recipient@example.com",
   interac_first_name: "John",
   interac_last_name: "Doe"
+});
+```
+
+#### ACH Payout (USD)
+
+```javascript
+const achPayout = await blaaiz.payouts.initiate({
+  wallet_id: "wallet-id",
+  customer_id: "customer-id",
+  method: "ach",
+  from_amount: 100,
+  from_currency_id: "USD",
+  to_currency_id: "USD",
+  type: "individual", // individual or business
+  account_number: "123456789",
+  account_name: "John Doe",
+  account_type: "checking", // checking or savings
+  bank_name: "Chase Bank",
+  routing_number: "021000021"
+});
+```
+
+#### Wire Payout (USD)
+
+```javascript
+const wirePayout = await blaaiz.payouts.initiate({
+  wallet_id: "wallet-id",
+  customer_id: "customer-id",
+  method: "wire",
+  from_amount: 1000,
+  from_currency_id: "USD",
+  to_currency_id: "USD",
+  type: "individual",
+  account_number: "123456789",
+  account_name: "John Doe",
+  account_type: "checking",
+  bank_name: "Chase Bank",
+  routing_number: "021000021",
+  swift_code: "CHASUS33"
+});
+```
+
+#### Crypto Payout
+
+```javascript
+const cryptoPayout = await blaaiz.payouts.initiate({
+  wallet_id: "wallet-id",
+  customer_id: "customer-id",
+  method: "crypto",
+  from_amount: 100,
+  from_currency_id: "USD",
+  to_currency_id: "USDT",
+  wallet_address: "0x1234567890abcdef...",
+  wallet_token: "USDT", // USDT or USDC
+  wallet_network: "ETHEREUM_MAINNET" // BSC_MAINNET, ETHEREUM_MAINNET, TRON_MAINNET, MATIC_MAINNET
+});
+```
+
+#### Using to_amount Instead of from_amount
+
+You can specify the exact amount the recipient should receive:
+
+```javascript
+const payout = await blaaiz.payouts.initiate({
+  wallet_id: "wallet-id",
+  customer_id: "customer-id",
+  method: "bank_transfer",
+  to_amount: 50000, // Recipient gets exactly this amount
+  from_currency_id: "USD",
+  to_currency_id: "NGN",
+  bank_id: "bank-id",
+  account_number: "0123456789"
 });
 ```
 
@@ -264,9 +411,49 @@ console.log('Bank Name:', vba.data.bank_name);
 
 #### List Virtual Bank Accounts
 
+You can optionally filter by `wallet_id`, `customer_id`, or both.
+
 ```javascript
-const vbas = await blaaiz.virtualBankAccounts.list("wallet-id");
+// All virtual bank accounts
+const vbas = await blaaiz.virtualBankAccounts.list();
+
+// Filter by wallet
+const vbasByWallet = await blaaiz.virtualBankAccounts.list("wallet-id");
+
+// Filter by customer
+const vbasByCustomer = await blaaiz.virtualBankAccounts.list(null, "customer-id");
+
+// Filter by both wallet and customer
+const vbasByBoth = await blaaiz.virtualBankAccounts.list("wallet-id", "customer-id");
+
 console.log('Virtual Accounts:', vbas.data);
+```
+
+#### Close Virtual Bank Account
+
+```javascript
+// Close without reason
+const closed = await blaaiz.virtualBankAccounts.close("vba-id");
+
+// Close with reason
+const closedWithReason = await blaaiz.virtualBankAccounts.close("vba-id", "No longer needed");
+
+console.log('Status:', closed.data.status);
+```
+
+#### Get Identification Type
+
+Retrieve the expected identification type label based on country and customer type. This is useful for determining what identification documents are required for a customer.
+
+```javascript
+// Using customer_id (recommended if customer already exists)
+const idType = await blaaiz.virtualBankAccounts.getIdentificationType("customer-id");
+console.log('Required ID:', idType.data.label); // e.g., "Bank Verification Number"
+console.log('Type:', idType.data.type); // e.g., "bvn"
+
+// Using country and type (for new customers)
+const idTypeNew = await blaaiz.virtualBankAccounts.getIdentificationType(null, "NG", "individual");
+console.log('Required ID:', idTypeNew.data.label);
 ```
 
 ### Wallets
@@ -338,15 +525,25 @@ console.log('Supported Currencies:', currencies.data);
 #### Get Fee Breakdown
 
 ```javascript
+// Using from_amount (calculate what recipient gets)
 const feeBreakdown = await blaaiz.fees.getBreakdown({
-  from_currency_id: "1", // NGN
-  to_currency_id: "2", // CAD
+  from_currency_id: "NGN",
+  to_currency_id: "CAD",
   from_amount: 100000
 });
 
 console.log('You send:', feeBreakdown.data.you_send);
 console.log('Recipient gets:', feeBreakdown.data.recipient_gets);
 console.log('Total fees:', feeBreakdown.data.total_fees);
+
+// Using to_amount (calculate what you need to send)
+const feeBreakdownReverse = await blaaiz.fees.getBreakdown({
+  from_currency_id: "USD",
+  to_currency_id: "NGN",
+  to_amount: 50000 // Recipient should get exactly this
+});
+
+console.log('You send:', feeBreakdownReverse.data.you_send);
 ```
 
 ### Webhooks
@@ -375,12 +572,23 @@ const replay = await blaaiz.webhooks.replay({
 });
 ```
 
+#### Simulate Interac Webhook (Non-Production Only)
+
+```javascript
+// For testing Interac webhooks in development/sandbox environment
+const simulate = await blaaiz.webhooks.simulateInteracWebhook({
+  interac_email: "sender@example.com"
+});
+
+console.log('Message:', simulate.message);
+```
+
 ## Advanced Usage
 
 ### Complete Payout Workflow
 
 ```javascript
-const completePayoutResult = await blaaiz.createCompleteePayout({
+const completePayoutResult = await blaaiz.createCompletePayout({
   customerData: {
     first_name: "John",
     last_name: "Doe",
@@ -394,10 +602,10 @@ const completePayoutResult = await blaaiz.createCompleteePayout({
     wallet_id: "wallet-id",
     method: "bank_transfer",
     from_amount: 1000,
-    from_currency_id: "1",
-    to_currency_id: "1",
+    from_currency_id: "NGN",
+    to_currency_id: "NGN",
     account_number: "0123456789",
-    bank_id: "1",
+    bank_id: "bank-id",
     phone_number: "+2348012345678"
   }
 });
@@ -423,6 +631,7 @@ const completeCollectionResult = await blaaiz.createCompleteCollection({
   collectionData: {
     method: "card",
     amount: 5000,
+    currency: "NGN",
     wallet_id: "wallet-id"
   },
   createVBA: true // Optionally create a virtual bank account
@@ -463,7 +672,7 @@ The Blaaiz API has a rate limit of 100 requests per minute. The SDK automaticall
 
 ### Webhook Signature Verification
 
-The SDK provides built-in webhook signature verification to ensure webhook authenticity:
+The SDK provides built-in webhook signature verification to ensure webhook authenticity. The signature is computed using HMAC-SHA256 with the format `timestamp.payload`.
 
 ```javascript
 const { Blaaiz } = require('blaaiz-nodejs-sdk');
@@ -473,7 +682,8 @@ const blaaiz = new Blaaiz('your-api-key');
 // Method 1: Verify signature manually
 const isValid = blaaiz.webhooks.verifySignature(
   payload,        // Raw webhook payload (string or object)
-  signature,      // Signature from webhook headers
+  signature,      // Signature from webhook headers (x-blaaiz-signature)
+  timestamp,      // Timestamp from webhook headers (x-blaaiz-timestamp)
   webhookSecret   // Your webhook secret key
 );
 
@@ -487,10 +697,11 @@ if (isValid) {
 try {
   const event = blaaiz.webhooks.constructEvent(
     payload,        // Raw webhook payload
-    signature,      // Signature from webhook headers  
+    signature,      // Signature from webhook headers
+    timestamp,      // Timestamp from webhook headers
     webhookSecret   // Your webhook secret key
   );
-  
+
   console.log('Verified event:', event);
   // event.verified will be true
   // event.timestamp will contain verification timestamp
@@ -517,12 +728,13 @@ app.use('/webhooks', express.raw({ type: 'application/json' }));
 // Collection webhook with signature verification
 app.post('/webhooks/collection', (req, res) => {
   const signature = req.headers['x-blaaiz-signature'];
+  const timestamp = req.headers['x-blaaiz-timestamp'];
   const payload = req.body.toString();
-  
+
   try {
     // Verify webhook signature and construct event
-    const event = blaaiz.webhooks.constructEvent(payload, signature, WEBHOOK_SECRET);
-    
+    const event = blaaiz.webhooks.constructEvent(payload, signature, timestamp, WEBHOOK_SECRET);
+
     console.log('Verified collection event:', {
       transaction_id: event.transaction_id,
       status: event.status,
@@ -530,10 +742,10 @@ app.post('/webhooks/collection', (req, res) => {
       currency: event.currency,
       verified: event.verified
     });
-    
+
     // Process the collection
     // Update your database, send notifications, etc.
-    
+
     res.status(200).json({ received: true });
   } catch (error) {
     console.error('Webhook verification failed:', error.message);
@@ -544,22 +756,23 @@ app.post('/webhooks/collection', (req, res) => {
 // Payout webhook with signature verification
 app.post('/webhooks/payout', (req, res) => {
   const signature = req.headers['x-blaaiz-signature'];
+  const timestamp = req.headers['x-blaaiz-timestamp'];
   const payload = req.body.toString();
-  
+
   try {
     // Verify webhook signature and construct event
-    const event = blaaiz.webhooks.constructEvent(payload, signature, WEBHOOK_SECRET);
-    
+    const event = blaaiz.webhooks.constructEvent(payload, signature, timestamp, WEBHOOK_SECRET);
+
     console.log('Verified payout event:', {
       transaction_id: event.transaction_id,
       status: event.status,
       recipient: event.recipient,
       verified: event.verified
     });
-    
+
     // Process the payout completion
     // Update your database, send notifications, etc.
-    
+
     res.status(200).json({ received: true });
   } catch (error) {
     console.error('Webhook verification failed:', error.message);
@@ -579,20 +792,21 @@ If you prefer manual verification:
 ```javascript
 app.post('/webhooks/collection', (req, res) => {
   const signature = req.headers['x-blaaiz-signature'];
+  const timestamp = req.headers['x-blaaiz-timestamp'];
   const payload = req.body.toString();
-  
+
   // Verify signature manually
-  const isValid = blaaiz.webhooks.verifySignature(payload, signature, WEBHOOK_SECRET);
-  
+  const isValid = blaaiz.webhooks.verifySignature(payload, signature, timestamp, WEBHOOK_SECRET);
+
   if (!isValid) {
     console.error('Invalid webhook signature');
     return res.status(400).json({ error: 'Invalid signature' });
   }
-  
+
   // Parse payload manually
   const event = JSON.parse(payload);
   console.log('Collection received:', event);
-  
+
   res.status(200).json({ received: true });
 });
 ```
