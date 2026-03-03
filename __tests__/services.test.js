@@ -145,7 +145,7 @@ describe('Service classes validate input and call makeRequest', () => {
       await expect(service.uploadFileComplete('cust-123', {
         file: Buffer.from('test'),
         file_category: 'identity',
-        contentType: 'application/pdf'
+        content_type: 'application/pdf'
       })).rejects.toThrow('File upload failed: S3 upload failed')
 
       expect(client.makeRequest).toHaveBeenCalledWith('POST', '/api/external/file/get-presigned-url', {
@@ -154,7 +154,7 @@ describe('Service classes validate input and call makeRequest', () => {
       })
     })
 
-    test('uploadFileComplete success flow with contentType', async () => {
+    test('uploadFileComplete success flow with content_type', async () => {
       const service = new CustomerService(client)
 
       const mockPresignedResponse = {
@@ -179,7 +179,7 @@ describe('Service classes validate input and call makeRequest', () => {
       const result = await service.uploadFileComplete('cust-123', {
         file: Buffer.from('test'),
         file_category: 'identity',
-        contentType: 'application/pdf'
+        content_type: 'application/pdf'
       })
 
       expect(service._uploadToS3).toHaveBeenCalledWith(
@@ -400,7 +400,7 @@ describe('Service classes validate input and call makeRequest', () => {
       service._uploadToS3 = jest.fn().mockResolvedValue({ status: 200 })
       service._downloadFile = jest.fn().mockResolvedValue({
         buffer: Buffer.from('downloaded file content'),
-        contentType: 'image/jpeg',
+        content_type: 'image/jpeg',
         filename: 'downloaded-image.jpg'
       })
 

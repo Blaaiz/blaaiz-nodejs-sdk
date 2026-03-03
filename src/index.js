@@ -39,7 +39,7 @@ class Blaaiz {
     }
   }
 
-  async createCompleteePayout (payoutConfig) {
+  async createCompletePayout (payoutConfig) {
     const { customerData, payoutData } = payoutConfig
 
     try {

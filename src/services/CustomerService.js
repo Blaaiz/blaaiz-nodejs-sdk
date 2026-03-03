@@ -84,7 +84,8 @@ class CustomerService {
     }
 
     const { file, file_category } = fileOptions // eslint-disable-line camelcase
-    let { filename, contentType } = fileOptions
+    let { filename } = fileOptions
+    let contentType = fileOptions.content_type || fileOptions.contentType // eslint-disable-line camelcase
 
     if (!file) {
       throw new Error('File is required')
@@ -188,7 +189,7 @@ class CustomerService {
       }
       if (!contentType) {
         throw new Error(
-          'Could not determine file content type. Please provide a contentType (e.g., "image/jpeg", "image/png", "application/pdf") in fileOptions.'
+          'Could not determine file content type. Please provide a content_type (e.g., "image/jpeg", "image/png", "application/pdf") in fileOptions.'
         )
       }
 
