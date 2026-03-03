@@ -84,7 +84,8 @@ class CustomerService {
     }
 
     const { file, file_category } = fileOptions // eslint-disable-line camelcase
-    let { filename, contentType } = fileOptions
+    let { filename } = fileOptions
+    let contentType = fileOptions.content_type || fileOptions.contentType // eslint-disable-line camelcase
 
     if (!file) {
       throw new Error('File is required')
@@ -129,6 +130,15 @@ class CustomerService {
         if (file.startsWith('data:')) {
           // Handle data URL format: data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAYEBQYFBAYGBQYHBwYIChAKCgkJChQODwwQFxQYGBcUFhYaHSUfGhsjHBYWICwgIyYnKSopGR8tMC0oMCUoKSj/2wBDAQcHBwoIChMKChMoGhYaKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCj/wAARCAABAAEDASIAAhEBAxEB/8QAFQABAQAAAAAAAAAAAAAAAAAAAAv/xAAUEAEAAAAAAAAAAAAAAAAAAAAA/8QAFQEBAQAAAAAAAAAAAAAAAAAAAAX/xAAUEQEAAAAAAAAAAAAAAAAAAAAA/9oADAMBAAIRAxEAPwCdABmX/9k=
           const base64Data = file.split(',')[1]
+          if (!base64Data || !base64Data.trim()) {
+            throw new Error('Invalid data URL: no base64 data found after the comma')
+          }
+          if (!/^[A-Za-z0-9+/]*={0,2}$/.test(base64Data.trim())) {
+            throw new Error(
+              'The base64 portion of the data URL does not appear to be valid base64. ' +
+              'Ensure the string after the comma contains only valid base64 characters.'
+            )
+          }
           fileBuffer = Buffer.from(base64Data, 'base64')
 
           // Extract content type from data URL if not provided
@@ -154,11 +164,33 @@ class CustomerService {
           }
         } else {
           // Handle plain base64 string
+          if (!file.trim()) {
+            throw new Error('The file string is empty')
+          }
+          if (!/^[A-Za-z0-9+/]*={0,2}$/.test(file.trim())) {
+            throw new Error(
+              'The file string does not appear to be valid base64. ' +
+              'If you meant to pass a file path, Buffer, or URL, use the appropriate format instead.'
+            )
+          }
           fileBuffer = Buffer.from(file, 'base64')
         }
       } else {
         // Handle Uint8Array or other array-like structures
         fileBuffer = Buffer.from(file)
+      }
+
+      // Auto-detect content type if not provided
+      if (!contentType) {
+        contentType = this._detectContentTypeFromBytes(fileBuffer)
+      }
+      if (!contentType && filename) {
+        contentType = this._getContentTypeFromFilename(filename)
+      }
+      if (!contentType) {
+        throw new Error(
+          'Could not determine file content type. Please provide a content_type (e.g., "image/jpeg", "image/png", "application/pdf") in fileOptions.'
+        )
       }
 
       await this._uploadToS3(presignedUrl, fileBuffer, contentType, filename)
@@ -351,6 +383,66 @@ class CustomerService {
 
       req.end()
     })
+  }
+
+  _detectContentTypeFromBytes (buffer) {
+    if (!buffer || buffer.length < 4) return null
+
+    // JPEG: FF D8 FF
+    if (buffer[0] === 0xFF && buffer[1] === 0xD8 && buffer[2] === 0xFF) {
+      return 'image/jpeg'
+    }
+    // PNG: 89 50 4E 47
+    if (buffer[0] === 0x89 && buffer[1] === 0x50 && buffer[2] === 0x4E && buffer[3] === 0x47) {
+      return 'image/png'
+    }
+    // GIF: 47 49 46 38
+    if (buffer[0] === 0x47 && buffer[1] === 0x49 && buffer[2] === 0x46 && buffer[3] === 0x38) {
+      return 'image/gif'
+    }
+    // PDF: 25 50 44 46 (%PDF)
+    if (buffer[0] === 0x25 && buffer[1] === 0x50 && buffer[2] === 0x44 && buffer[3] === 0x46) {
+      return 'application/pdf'
+    }
+    // WEBP: starts with RIFF....WEBP
+    if (buffer.length >= 12 &&
+        buffer[0] === 0x52 && buffer[1] === 0x49 && buffer[2] === 0x46 && buffer[3] === 0x46 &&
+        buffer[8] === 0x57 && buffer[9] === 0x45 && buffer[10] === 0x42 && buffer[11] === 0x50) {
+      return 'image/webp'
+    }
+    // BMP: 42 4D
+    if (buffer[0] === 0x42 && buffer[1] === 0x4D) {
+      return 'image/bmp'
+    }
+    // TIFF: 49 49 2A 00 (little-endian) or 4D 4D 00 2A (big-endian)
+    if ((buffer[0] === 0x49 && buffer[1] === 0x49 && buffer[2] === 0x2A && buffer[3] === 0x00) ||
+        (buffer[0] === 0x4D && buffer[1] === 0x4D && buffer[2] === 0x00 && buffer[3] === 0x2A)) {
+      return 'image/tiff'
+    }
+
+    return null
+  }
+
+  _getContentTypeFromFilename (filename) {
+    if (!filename) return null
+
+    const ext = filename.toLowerCase().split('.').pop()
+    const extToMime = {
+      jpg: 'image/jpeg',
+      jpeg: 'image/jpeg',
+      png: 'image/png',
+      gif: 'image/gif',
+      webp: 'image/webp',
+      bmp: 'image/bmp',
+      tiff: 'image/tiff',
+      tif: 'image/tiff',
+      pdf: 'application/pdf',
+      txt: 'text/plain',
+      doc: 'application/msword',
+      docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+    }
+
+    return extToMime[ext] || null
   }
 
   _getExtensionFromContentType (contentType) {

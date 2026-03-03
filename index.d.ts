@@ -52,6 +52,8 @@ export interface FileUploadOptions {
   file: Buffer | Uint8Array | string;
   file_category: 'identity' | 'proof_of_address' | 'liveness_check';
   filename?: string;
+  content_type?: string;
+  /** @deprecated Use content_type instead */
   contentType?: string;
 }
 
@@ -331,7 +333,7 @@ export declare class Blaaiz {
   
   testConnection(): Promise<boolean>;
   
-  createCompleteePayout(payoutConfig: {
+  createCompletePayout(payoutConfig: {
     customerData?: CustomerData;
     payoutData: PayoutData;
   }): Promise<{

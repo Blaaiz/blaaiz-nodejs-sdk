@@ -155,19 +155,19 @@ describe('Blaaiz SDK Integration Tests', () => {
           category: 'identity',
           filename: 'test_passport.pdf',
           content: Buffer.from('Test passport document content'),
-          contentType: 'application/pdf'
+          content_type: 'application/pdf'
         },
         {
           category: 'proof_of_address',
           filename: 'test_address.jpg',
           content: Buffer.from('Test address proof image content'),
-          contentType: 'image/jpeg'
+          content_type: 'image/jpeg'
         },
         {
           category: 'liveness_check',
           filename: 'test_selfie.png',
           content: Buffer.from('Test liveness check image content'),
-          contentType: 'image/png'
+          content_type: 'image/png'
         }
       ]
 
@@ -176,7 +176,7 @@ describe('Blaaiz SDK Integration Tests', () => {
           file: fileInfo.content,
           file_category: fileInfo.category,
           filename: fileInfo.filename,
-          contentType: fileInfo.contentType
+          content_type: fileInfo.content_type
         }
 
         try {
@@ -209,19 +209,19 @@ describe('Blaaiz SDK Integration Tests', () => {
           name: 'PDF Document',
           content: Buffer.from('%PDF-1.4\n1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj\n'),
           filename: 'document.pdf',
-          contentType: 'application/pdf'
+          content_type: 'application/pdf'
         },
         {
           name: 'JPEG Image',
           content: Buffer.from([0xff, 0xd8, 0xff, 0xe0, 0x00, 0x10, 0x4a, 0x46, 0x49, 0x46, 0x00, 0x01, 0x01, 0x01, 0x00, 0x48, 0x00, 0x48, 0x00, 0x00, 0xff, 0xdb]),
           filename: 'image.jpg',
-          contentType: 'image/jpeg'
+          content_type: 'image/jpeg'
         },
         {
           name: 'PNG Image',
           content: Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00, 0x00, 0x00, 0x0d, 0x49, 0x48, 0x44, 0x52, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01, 0x08, 0x06]),
           filename: 'image.png',
-          contentType: 'image/png'
+          content_type: 'image/png'
         }
       ]
 
@@ -230,7 +230,7 @@ describe('Blaaiz SDK Integration Tests', () => {
           file: testCase.content,
           file_category: 'identity',
           filename: testCase.filename,
-          contentType: testCase.contentType
+          content_type: testCase.content_type
         }
 
         try {
@@ -259,7 +259,7 @@ describe('Blaaiz SDK Integration Tests', () => {
         file: base64String,
         file_category: 'identity',
         filename: 'test.png',
-        contentType: 'image/png'
+        content_type: 'image/png'
       }
 
       try {
@@ -319,7 +319,7 @@ describe('Blaaiz SDK Integration Tests', () => {
         file: pdfContent,
         file_category: 'identity',
         filename: 'blank.pdf',
-        contentType: 'application/pdf'
+        content_type: 'application/pdf'
       }
 
       try {
@@ -378,7 +378,7 @@ describe('Blaaiz SDK Integration Tests', () => {
         file: Buffer.from('test content'),
         file_category: 'invalid_category',
         filename: 'test.pdf',
-        contentType: 'application/pdf'
+        content_type: 'application/pdf'
       }
 
       await expect(blaaiz.customers.uploadFileComplete(testCustomerId, fileOptions))
@@ -392,7 +392,7 @@ describe('Blaaiz SDK Integration Tests', () => {
         file: null,
         file_category: 'identity',
         filename: 'test.pdf',
-        contentType: 'application/pdf'
+        content_type: 'application/pdf'
       }
 
       await expect(blaaiz.customers.uploadFileComplete(testCustomerId, fileOptions))
@@ -406,7 +406,7 @@ describe('Blaaiz SDK Integration Tests', () => {
         file: Buffer.from('test content'),
         file_category: 'identity',
         filename: 'test.pdf',
-        contentType: 'application/pdf'
+        content_type: 'application/pdf'
       }
 
       await expect(blaaiz.customers.uploadFileComplete('invalid-customer-id', fileOptions))
@@ -419,7 +419,7 @@ describe('Blaaiz SDK Integration Tests', () => {
       const fileOptions = {
         file: Buffer.from('test content'),
         filename: 'test.pdf',
-        contentType: 'application/pdf'
+        content_type: 'application/pdf'
       }
 
       await expect(blaaiz.customers.uploadFileComplete(testCustomerId, fileOptions))
@@ -452,21 +452,21 @@ describe('Blaaiz SDK Integration Tests', () => {
           category: 'identity',
           filename: 'passport.pdf',
           content: Buffer.from('%PDF-1.4\n1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj\n2 0 obj\n<< /Type /Pages /Kids [3 0 R] /Count 1 >>\nendobj\n3 0 obj\n<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] >>\nendobj\nxref\n0 4\n0000000000 65535 f \n0000000009 00000 n \n0000000074 00000 n \n0000000120 00000 n \ntrailer\n<< /Size 4 /Root 1 0 R >>\nstartxref\n179\n%%EOF'),
-          contentType: 'application/pdf'
+          content_type: 'application/pdf'
         },
         {
           name: 'Synthetic JPEG',
           category: 'liveness_check',
           filename: 'selfie.jpg',
           content: Buffer.from([0xff, 0xd8, 0xff, 0xe0, 0x00, 0x10, 0x4a, 0x46, 0x49, 0x46, 0x00, 0x01, 0x01, 0x01, 0x00, 0x48, 0x00, 0x48, 0x00, 0x00, 0xff, 0xdb, 0x00, 0x43, 0x00, 0x08, 0x06, 0x06, 0x07, 0x06, 0x05, 0x08, 0x07, 0x07, 0x07, 0x09, 0x09, 0x08, 0x0a, 0x0c, 0x14, 0x0d, 0x0c, 0x0b, 0x0b, 0x0c, 0x19, 0x12, 0x13, 0x0f, 0x14, 0x1d, 0x1a, 0x1f, 0x1e, 0x1d, 0x1a, 0x1c, 0x1c, 0x20, 0x24, 0x2e, 0x27, 0x20, 0x22, 0x2c, 0x23, 0x1c, 0x1c, 0x28, 0x37, 0x29, 0x2c, 0x30, 0x31, 0x34, 0x34, 0x34, 0x1f, 0x27, 0x39, 0x3d, 0x38, 0x32, 0x3c, 0x2e, 0x33, 0x34, 0x32, 0xff, 0xc0, 0x00, 0x11, 0x08, 0x00, 0x01, 0x00, 0x01, 0x01, 0x01, 0x11, 0x00, 0x02, 0x11, 0x01, 0x03, 0x11, 0x01, 0xff, 0xc4, 0x00, 0x15, 0x00, 0x01, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x08, 0xff, 0xc4, 0x00, 0x14, 0x10, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xff, 0xda, 0x00, 0x08, 0x01, 0x01, 0x00, 0x00, 0x3f, 0x00, 0xaa, 0xff, 0xd9]),
-          contentType: 'image/jpeg'
+          content_type: 'image/jpeg'
         },
         {
           name: 'Synthetic PNG',
           category: 'proof_of_address',
           filename: 'address_proof.png',
           content: Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00, 0x00, 0x00, 0x0d, 0x49, 0x48, 0x44, 0x52, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01, 0x08, 0x06, 0x00, 0x00, 0x00, 0x1f, 0x15, 0xc4, 0x89, 0x00, 0x00, 0x00, 0x0d, 0x49, 0x44, 0x41, 0x54, 0x78, 0x9c, 0x63, 0xf8, 0x0f, 0x00, 0x00, 0x01, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x49, 0x45, 0x4e, 0x44, 0xae, 0x42, 0x60, 0x82]),
-          contentType: 'image/png'
+          content_type: 'image/png'
         }
       ]
 
@@ -478,7 +478,7 @@ describe('Blaaiz SDK Integration Tests', () => {
           file: fileInfo.content,
           file_category: fileInfo.category,
           filename: fileInfo.filename,
-          contentType: fileInfo.contentType
+          content_type: fileInfo.content_type
         }
 
         try {

@@ -128,7 +128,7 @@ const result = await blaaiz.customers.uploadFileComplete('customer-id', {
   file: fileBuffer, // Buffer or Uint8Array
   file_category: 'identity', // identity, proof_of_address, liveness_check
   filename: 'passport.jpg', // Optional
-  contentType: 'image/jpeg' // Optional
+  content_type: 'image/jpeg' // Optional
 });
 
 // Option B: Upload from Base64 string
