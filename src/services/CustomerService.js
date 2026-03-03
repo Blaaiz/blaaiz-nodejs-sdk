@@ -161,6 +161,19 @@ class CustomerService {
         fileBuffer = Buffer.from(file)
       }
 
+      // Auto-detect content type if not provided
+      if (!contentType) {
+        contentType = this._detectContentTypeFromBytes(fileBuffer)
+      }
+      if (!contentType && filename) {
+        contentType = this._getContentTypeFromFilename(filename)
+      }
+      if (!contentType) {
+        throw new Error(
+          'Could not determine file content type. Please provide a contentType (e.g., "image/jpeg", "image/png", "application/pdf") in fileOptions.'
+        )
+      }
+
       await this._uploadToS3(presignedUrl, fileBuffer, contentType, filename)
 
       // Map file category to the correct field name expected by Laravel API
@@ -351,6 +364,66 @@ class CustomerService {
 
       req.end()
     })
+  }
+
+  _detectContentTypeFromBytes (buffer) {
+    if (!buffer || buffer.length < 4) return null
+
+    // JPEG: FF D8 FF
+    if (buffer[0] === 0xFF && buffer[1] === 0xD8 && buffer[2] === 0xFF) {
+      return 'image/jpeg'
+    }
+    // PNG: 89 50 4E 47
+    if (buffer[0] === 0x89 && buffer[1] === 0x50 && buffer[2] === 0x4E && buffer[3] === 0x47) {
+      return 'image/png'
+    }
+    // GIF: 47 49 46 38
+    if (buffer[0] === 0x47 && buffer[1] === 0x49 && buffer[2] === 0x46 && buffer[3] === 0x38) {
+      return 'image/gif'
+    }
+    // PDF: 25 50 44 46 (%PDF)
+    if (buffer[0] === 0x25 && buffer[1] === 0x50 && buffer[2] === 0x44 && buffer[3] === 0x46) {
+      return 'application/pdf'
+    }
+    // WEBP: starts with RIFF....WEBP
+    if (buffer.length >= 12 &&
+        buffer[0] === 0x52 && buffer[1] === 0x49 && buffer[2] === 0x46 && buffer[3] === 0x46 &&
+        buffer[8] === 0x57 && buffer[9] === 0x45 && buffer[10] === 0x42 && buffer[11] === 0x50) {
+      return 'image/webp'
+    }
+    // BMP: 42 4D
+    if (buffer[0] === 0x42 && buffer[1] === 0x4D) {
+      return 'image/bmp'
+    }
+    // TIFF: 49 49 2A 00 (little-endian) or 4D 4D 00 2A (big-endian)
+    if ((buffer[0] === 0x49 && buffer[1] === 0x49 && buffer[2] === 0x2A && buffer[3] === 0x00) ||
+        (buffer[0] === 0x4D && buffer[1] === 0x4D && buffer[2] === 0x00 && buffer[3] === 0x2A)) {
+      return 'image/tiff'
+    }
+
+    return null
+  }
+
+  _getContentTypeFromFilename (filename) {
+    if (!filename) return null
+
+    const ext = filename.toLowerCase().split('.').pop()
+    const extToMime = {
+      jpg: 'image/jpeg',
+      jpeg: 'image/jpeg',
+      png: 'image/png',
+      gif: 'image/gif',
+      webp: 'image/webp',
+      bmp: 'image/bmp',
+      tiff: 'image/tiff',
+      tif: 'image/tiff',
+      pdf: 'application/pdf',
+      txt: 'text/plain',
+      doc: 'application/msword',
+      docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+    }
+
+    return extToMime[ext] || null
   }
 
   _getExtensionFromContentType (contentType) {

@@ -144,7 +144,8 @@ describe('Service classes validate input and call makeRequest', () => {
 
       await expect(service.uploadFileComplete('cust-123', {
         file: Buffer.from('test'),
-        file_category: 'identity'
+        file_category: 'identity',
+        contentType: 'application/pdf'
       })).rejects.toThrow('File upload failed: S3 upload failed')
 
       expect(client.makeRequest).toHaveBeenCalledWith('POST', '/api/external/file/get-presigned-url', {
@@ -153,7 +154,7 @@ describe('Service classes validate input and call makeRequest', () => {
       })
     })
 
-    test('uploadFileComplete success flow', async () => {
+    test('uploadFileComplete success flow with contentType', async () => {
       const service = new CustomerService(client)
 
       const mockPresignedResponse = {
@@ -177,13 +178,14 @@ describe('Service classes validate input and call makeRequest', () => {
 
       const result = await service.uploadFileComplete('cust-123', {
         file: Buffer.from('test'),
-        file_category: 'identity'
+        file_category: 'identity',
+        contentType: 'application/pdf'
       })
 
       expect(service._uploadToS3).toHaveBeenCalledWith(
         'https://s3.amazonaws.com/bucket/file',
         Buffer.from('test'),
-        undefined,
+        'application/pdf',
         undefined
       )
 
@@ -198,7 +200,7 @@ describe('Service classes validate input and call makeRequest', () => {
       })
     })
 
-    test('uploadFileComplete handles base64 string', async () => {
+    test('uploadFileComplete auto-detects content type from magic bytes', async () => {
       const service = new CustomerService(client)
 
       const mockPresignedResponse = {
@@ -220,6 +222,102 @@ describe('Service classes validate input and call makeRequest', () => {
 
       service._uploadToS3 = jest.fn().mockResolvedValue({ status: 200 })
 
+      // PNG magic bytes
+      const pngBuffer = Buffer.from([0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A])
+
+      const result = await service.uploadFileComplete('cust-123', {
+        file: pngBuffer,
+        file_category: 'identity'
+      })
+
+      expect(service._uploadToS3).toHaveBeenCalledWith(
+        'https://s3.amazonaws.com/bucket/file',
+        pngBuffer,
+        'image/png',
+        undefined
+      )
+    })
+
+    test('uploadFileComplete auto-detects content type from filename extension', async () => {
+      const service = new CustomerService(client)
+
+      const mockPresignedResponse = {
+        data: {
+          message: 'Url generated successfully',
+          url: 'https://s3.amazonaws.com/bucket/file',
+          file_id: 'file-123',
+          headers: []
+        }
+      }
+
+      const mockFileAssociationResponse = {
+        data: { success: true }
+      }
+
+      client.makeRequest
+        .mockResolvedValueOnce(mockPresignedResponse)
+        .mockResolvedValueOnce(mockFileAssociationResponse)
+
+      service._uploadToS3 = jest.fn().mockResolvedValue({ status: 200 })
+
+      // Random bytes (no magic byte match), but with a filename
+      const result = await service.uploadFileComplete('cust-123', {
+        file: Buffer.from('random content'),
+        file_category: 'identity',
+        filename: 'document.pdf'
+      })
+
+      expect(service._uploadToS3).toHaveBeenCalledWith(
+        'https://s3.amazonaws.com/bucket/file',
+        Buffer.from('random content'),
+        'application/pdf',
+        'document.pdf'
+      )
+    })
+
+    test('uploadFileComplete throws error when content type cannot be determined', async () => {
+      const service = new CustomerService(client)
+
+      const mockPresignedResponse = {
+        data: {
+          message: 'Url generated successfully',
+          url: 'https://s3.amazonaws.com/bucket/file',
+          file_id: 'file-123',
+          headers: []
+        }
+      }
+
+      client.makeRequest.mockResolvedValueOnce(mockPresignedResponse)
+
+      await expect(service.uploadFileComplete('cust-123', {
+        file: Buffer.from('test'),
+        file_category: 'identity'
+      })).rejects.toThrow('Could not determine file content type')
+    })
+
+    test('uploadFileComplete handles base64 string with auto-detected content type', async () => {
+      const service = new CustomerService(client)
+
+      const mockPresignedResponse = {
+        data: {
+          message: 'Url generated successfully',
+          url: 'https://s3.amazonaws.com/bucket/file',
+          file_id: 'file-123',
+          headers: []
+        }
+      }
+
+      const mockFileAssociationResponse = {
+        data: { success: true }
+      }
+
+      client.makeRequest
+        .mockResolvedValueOnce(mockPresignedResponse)
+        .mockResolvedValueOnce(mockFileAssociationResponse)
+
+      service._uploadToS3 = jest.fn().mockResolvedValue({ status: 200 })
+
+      // This is a valid 1x1 PNG - magic bytes will be detected
       const base64String = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg=='
 
       const result = await service.uploadFileComplete('cust-123', {
@@ -227,10 +325,11 @@ describe('Service classes validate input and call makeRequest', () => {
         file_category: 'identity'
       })
 
+      // PNG magic bytes are auto-detected from the base64-decoded content
       expect(service._uploadToS3).toHaveBeenCalledWith(
         'https://s3.amazonaws.com/bucket/file',
         Buffer.from(base64String, 'base64'),
-        undefined,
+        'image/png',
         undefined
       )
 
