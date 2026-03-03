@@ -129,6 +129,15 @@ class CustomerService {
         if (file.startsWith('data:')) {
           // Handle data URL format: data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAYEBQYFBAYGBQYHBwYIChAKCgkJChQODwwQFxQYGBcUFhYaHSUfGhsjHBYWICwgIyYnKSopGR8tMC0oMCUoKSj/2wBDAQcHBwoIChMKChMoGhYaKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCj/wAARCAABAAEDASIAAhEBAxEB/8QAFQABAQAAAAAAAAAAAAAAAAAAAAv/xAAUEAEAAAAAAAAAAAAAAAAAAAAA/8QAFQEBAQAAAAAAAAAAAAAAAAAAAAX/xAAUEQEAAAAAAAAAAAAAAAAAAAAA/9oADAMBAAIRAxEAPwCdABmX/9k=
           const base64Data = file.split(',')[1]
+          if (!base64Data || !base64Data.trim()) {
+            throw new Error('Invalid data URL: no base64 data found after the comma')
+          }
+          if (!/^[A-Za-z0-9+/]*={0,2}$/.test(base64Data.trim())) {
+            throw new Error(
+              'The base64 portion of the data URL does not appear to be valid base64. ' +
+              'Ensure the string after the comma contains only valid base64 characters.'
+            )
+          }
           fileBuffer = Buffer.from(base64Data, 'base64')
 
           // Extract content type from data URL if not provided
@@ -154,6 +163,15 @@ class CustomerService {
           }
         } else {
           // Handle plain base64 string
+          if (!file.trim()) {
+            throw new Error('The file string is empty')
+          }
+          if (!/^[A-Za-z0-9+/]*={0,2}$/.test(file.trim())) {
+            throw new Error(
+              'The file string does not appear to be valid base64. ' +
+              'If you meant to pass a file path, Buffer, or URL, use the appropriate format instead.'
+            )
+          }
           fileBuffer = Buffer.from(file, 'base64')
         }
       } else {

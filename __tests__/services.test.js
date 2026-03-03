@@ -444,6 +444,46 @@ describe('Service classes validate input and call makeRequest', () => {
         file_category: 'identity'
       })).rejects.toThrow('File upload failed: Download failed')
     })
+
+    test('uploadFileComplete throws error for invalid plain base64 string', async () => {
+      const service = new CustomerService(client)
+
+      const mockPresignedResponse = {
+        data: {
+          message: 'Url generated successfully',
+          url: 'https://s3.amazonaws.com/bucket/file',
+          file_id: 'file-123',
+          headers: []
+        }
+      }
+
+      client.makeRequest.mockResolvedValueOnce(mockPresignedResponse)
+
+      await expect(service.uploadFileComplete('cust-123', {
+        file: '/home/user/photo.jpg',
+        file_category: 'identity'
+      })).rejects.toThrow('does not appear to be valid base64')
+    })
+
+    test('uploadFileComplete throws error for invalid base64 in data URL', async () => {
+      const service = new CustomerService(client)
+
+      const mockPresignedResponse = {
+        data: {
+          message: 'Url generated successfully',
+          url: 'https://s3.amazonaws.com/bucket/file',
+          file_id: 'file-123',
+          headers: []
+        }
+      }
+
+      client.makeRequest.mockResolvedValueOnce(mockPresignedResponse)
+
+      await expect(service.uploadFileComplete('cust-123', {
+        file: 'data:image/jpeg;base64,not valid base64!!',
+        file_category: 'identity'
+      })).rejects.toThrow('does not appear to be valid base64')
+    })
   })
 
   describe('CollectionService', () => {
