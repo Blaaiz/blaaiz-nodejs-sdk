@@ -94,6 +94,23 @@ const customers = await blaaiz.customers.list();
 console.log('Customers:', customers.data);
 ```
 
+You can also pass optional filters and opt-in pagination. Supported filters
+are `email`, `id_number`, `registration_number`, `verification_status`, and
+`type`. Set `paginate: true` to receive a paginated response that includes
+`links` and `meta` (with `current_page`, `total`, etc.) alongside `data`.
+
+```javascript
+const verified = await blaaiz.customers.list({
+  email: 'john@example.com',
+  verification_status: 'VERIFIED',
+  type: 'individual',
+  paginate: true
+});
+
+console.log('Page:', verified.data.meta.current_page);
+console.log('Customers:', verified.data.data);
+```
+
 #### Update Customer
 
 ```javascript

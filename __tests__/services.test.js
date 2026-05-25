@@ -90,6 +90,30 @@ describe('Service classes validate input and call makeRequest', () => {
       await expect(service.get()).rejects.toThrow('Customer ID is required')
     })
 
+    test('list calls makeRequest without filters', async () => {
+      const service = new CustomerService(client)
+      await service.list()
+      expect(client.makeRequest).toHaveBeenCalledWith('GET', '/api/external/customer')
+    })
+
+    test('list forwards filters as query parameters', async () => {
+      const service = new CustomerService(client)
+      await service.list({
+        email: 'john@example.com',
+        verification_status: 'VERIFIED',
+        type: 'individual',
+        paginate: true
+      })
+      const [method, endpoint] = client.makeRequest.mock.calls[0]
+      expect(method).toBe('GET')
+      expect(endpoint.startsWith('/api/external/customer?')).toBe(true)
+      const query = endpoint.split('?')[1]
+      expect(query).toContain('email=john%40example.com')
+      expect(query).toContain('verification_status=VERIFIED')
+      expect(query).toContain('type=individual')
+      expect(query).toContain('paginate=true')
+    })
+
     test('listBeneficiaries validates customer id', async () => {
       const service = new CustomerService(client)
       await expect(service.listBeneficiaries()).rejects.toThrow('Customer ID is required')

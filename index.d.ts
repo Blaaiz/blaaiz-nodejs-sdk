@@ -35,7 +35,43 @@ export interface CustomerData {
 export interface Customer extends CustomerData {
   id: string;
   business_id: string;
-  verification_status: 'PENDING' | 'VERIFIED' | 'REJECTED';
+  verification_status: 'PENDING' | 'PROCESSING' | 'VERIFIED' | 'REJECTED';
+}
+
+export interface CustomerListFilters {
+  email?: string;
+  id_number?: string;
+  registration_number?: string;
+  verification_status?: 'PENDING' | 'PROCESSING' | 'VERIFIED' | 'REJECTED';
+  type?: 'individual' | 'business';
+  paginate?: boolean;
+  page?: number;
+  per_page?: number;
+  [key: string]: string | number | boolean | undefined;
+}
+
+export interface PaginationLinks {
+  first?: string | null;
+  last?: string | null;
+  prev?: string | null;
+  next?: string | null;
+}
+
+export interface PaginationMeta {
+  current_page: number;
+  from?: number | null;
+  last_page?: number;
+  path?: string;
+  per_page?: number;
+  to?: number | null;
+  total: number;
+}
+
+export interface PaginatedCustomers {
+  data: Customer[];
+  links: PaginationLinks;
+  meta: PaginationMeta;
+  message?: string;
 }
 
 export interface CustomerKYCData {
@@ -244,7 +280,7 @@ export interface WebhookEvent {
 export declare class CustomerService {
   constructor(client: any);
   create(customerData: CustomerData): Promise<BlaaizResponse<{ data: Customer }>>;
-  list(): Promise<BlaaizResponse<Customer[]>>;
+  list(filters?: CustomerListFilters): Promise<BlaaizResponse<Customer[] | PaginatedCustomers>>;
   get(customerId: string): Promise<BlaaizResponse<Customer>>;
   update(customerId: string, updateData: Partial<CustomerData>): Promise<BlaaizResponse<Customer>>;
   addKYC(customerId: string, kycData: CustomerKYCData): Promise<BlaaizResponse<any>>;
