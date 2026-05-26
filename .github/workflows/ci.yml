@@ -141,7 +141,10 @@ jobs:
       with:
         node-version: '22.x'
         cache: 'npm'
-        registry-url: 'https://registry.npmjs.org'
+        # Intentionally no registry-url: setup-node would otherwise write
+        # an .npmrc with `_authToken=${NODE_AUTH_TOKEN}` and export a
+        # placeholder NODE_AUTH_TOKEN, which makes npm publish via the
+        # token path and skip the OIDC handshake.
 
     - name: Ensure npm supports OIDC trusted publishing
       run: npm install -g npm@latest
