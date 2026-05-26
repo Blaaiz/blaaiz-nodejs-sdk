@@ -129,28 +129,33 @@ jobs:
     runs-on: ubuntu-22.04
     needs: [test, security-audit, build]
     if: github.event_name == 'release' && github.event.action == 'published'
-    
+    permissions:
+      id-token: write
+      contents: read
+
     steps:
     - uses: actions/checkout@v4
-    
+
     - name: Setup Node.js
       uses: actions/setup-node@v4
       with:
-        node-version: '18.x'
+        node-version: '22.x'
         cache: 'npm'
         registry-url: 'https://registry.npmjs.org'
-    
+
+    - name: Ensure npm supports OIDC trusted publishing
+      run: npm install -g npm@latest
+
     - name: Install dependencies
       run: npm install
-    
+
     - name: Build package
       run: npm run build
-    
+
     - name: Publish to npm
       env:
         BLAAIZ_API_KEY: ${{ secrets.BLAAIZ_API_KEY }}
         BLAAIZ_WEBHOOK_SECRET: ${{ secrets.BLAAIZ_WEBHOOK_SECRET }}
-        NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
       run: npm publish --access public
 
   publish-dry-run:
