@@ -139,6 +139,7 @@ export interface PayoutData {
   wallet_address?: string;
   wallet_network?: string;
   wallet_token?: string;
+  note?: string;
 }
 
 export interface PayoutResponse {
