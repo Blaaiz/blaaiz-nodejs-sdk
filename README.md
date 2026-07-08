@@ -696,6 +696,8 @@ The Blaaiz API has a rate limit of 100 requests per minute. The SDK automaticall
 
 The SDK provides built-in webhook signature verification to ensure webhook authenticity. The signature is computed using HMAC-SHA256 with the format `timestamp.payload`.
 
+> **Important:** `payload` must be the **raw request body string** exactly as received. Do not pass a parsed object — parsing and re-serializing (e.g. `JSON.stringify`) changes the bytes and will break signature verification. Capture the raw body with `express.raw({ type: 'application/json' })` and pass `req.body.toString()` (see the Express example below).
+
 ```javascript
 const { Blaaiz } = require('blaaiz-nodejs-sdk');
 
@@ -703,7 +705,7 @@ const blaaiz = new Blaaiz('your-api-key');
 
 // Method 1: Verify signature manually
 const isValid = blaaiz.webhooks.verifySignature(
-  payload,        // Raw webhook payload (string or object)
+  payload,        // Raw request body string (do not pass a parsed object)
   signature,      // Signature from webhook headers (x-blaaiz-signature)
   timestamp,      // Timestamp from webhook headers (x-blaaiz-timestamp)
   webhookSecret   // Your webhook secret key
@@ -718,7 +720,7 @@ if (isValid) {
 // Method 2: Construct verified event (recommended)
 try {
   const event = blaaiz.webhooks.constructEvent(
-    payload,        // Raw webhook payload
+    payload,        // Raw request body string (do not pass a parsed object)
     signature,      // Signature from webhook headers
     timestamp,      // Timestamp from webhook headers
     webhookSecret   // Your webhook secret key
