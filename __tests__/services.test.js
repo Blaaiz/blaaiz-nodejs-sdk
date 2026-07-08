@@ -902,7 +902,22 @@ describe('Service classes validate input and call makeRequest', () => {
       expect(service.verifySignature(payload, invalidSignature, timestamp, secret)).toBe(false)
     })
 
-    test('verifySignature works with object payload', () => {
+    test('verifySignature returns true for a signed raw JSON string', () => {
+      const service = new WebhookService(client)
+      // The exact raw bytes the sender signed. A caller must forward this
+      // string unchanged; re-serializing an object would alter the bytes.
+      const payload = '{"transaction_id":"txn_123","status":"completed","amount":100.5}'
+      const timestamp = '1234567890'
+      const secret = 'webhook_secret_key'
+
+      const crypto = require('crypto')
+      const signedPayload = `${timestamp}.${payload}`
+      const validSignature = crypto.createHmac('sha256', secret).update(signedPayload, 'utf8').digest('hex')
+
+      expect(service.verifySignature(payload, validSignature, timestamp, secret)).toBe(true)
+    })
+
+    test('verifySignature throws when a parsed object is passed instead of the raw body', () => {
       const service = new WebhookService(client)
       const payload = { transaction_id: 'txn_123', status: 'completed' }
       const timestamp = '1234567890'
@@ -910,9 +925,10 @@ describe('Service classes validate input and call makeRequest', () => {
 
       const crypto = require('crypto')
       const signedPayload = `${timestamp}.${JSON.stringify(payload)}`
-      const validSignature = crypto.createHmac('sha256', secret).update(signedPayload, 'utf8').digest('hex')
+      const signature = crypto.createHmac('sha256', secret).update(signedPayload, 'utf8').digest('hex')
 
-      expect(service.verifySignature(payload, validSignature, timestamp, secret)).toBe(true)
+      expect(() => service.verifySignature(payload, signature, timestamp, secret))
+        .toThrow('Webhook payload must be the raw request body string')
     })
 
     test('constructEvent validates signature and returns event', () => {
@@ -956,7 +972,7 @@ describe('Service classes validate input and call makeRequest', () => {
       expect(() => service.constructEvent(payload, validSignature, timestamp, secret)).toThrow('Invalid webhook payload: unable to parse JSON')
     })
 
-    test('constructEvent works with object payload', () => {
+    test('constructEvent throws when a parsed object is passed instead of the raw body', () => {
       const service = new WebhookService(client)
       const payload = { transaction_id: 'txn_123', status: 'completed' }
       const timestamp = '1234567890'
@@ -964,13 +980,10 @@ describe('Service classes validate input and call makeRequest', () => {
 
       const crypto = require('crypto')
       const signedPayload = `${timestamp}.${JSON.stringify(payload)}`
-      const validSignature = crypto.createHmac('sha256', secret).update(signedPayload, 'utf8').digest('hex')
+      const signature = crypto.createHmac('sha256', secret).update(signedPayload, 'utf8').digest('hex')
 
-      const event = service.constructEvent(payload, validSignature, timestamp, secret)
-
-      expect(event.transaction_id).toBe('txn_123')
-      expect(event.status).toBe('completed')
-      expect(event.verified).toBe(true)
+      expect(() => service.constructEvent(payload, signature, timestamp, secret))
+        .toThrow('Webhook payload must be the raw request body string')
     })
   })
 })

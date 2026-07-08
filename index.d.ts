@@ -348,8 +348,8 @@ export declare class WebhookService {
   get(): Promise<BlaaizResponse<WebhookData>>;
   update(webhookData: Partial<WebhookData>): Promise<BlaaizResponse<any>>;
   replay(replayData: WebhookReplayData): Promise<BlaaizResponse<any>>;
-  verifySignature(payload: string | object, signature: string, secret: string): boolean;
-  constructEvent(payload: string | object, signature: string, secret: string): WebhookEvent;
+  verifySignature(payload: string, signature: string, timestamp: string, secret: string): boolean;
+  constructEvent(payload: string, signature: string, timestamp: string, secret: string): WebhookEvent;
 }
 
 // Main SDK Class

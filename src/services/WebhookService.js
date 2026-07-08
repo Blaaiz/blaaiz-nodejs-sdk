@@ -54,13 +54,16 @@ class WebhookService {
       throw new Error('Webhook secret is required for signature verification')
     }
 
+    // The payload must be the raw request body string. Parsing and
+    // re-serializing an object changes the bytes and breaks verification.
+    if (typeof payload !== 'string') {
+      throw new Error('Webhook payload must be the raw request body string. Do not pass a parsed object — parsing and re-serializing changes the bytes and breaks signature verification. Use the raw body (e.g. express.raw({ type: "application/json" }) then req.body.toString()).')
+    }
+
     const crypto = require('crypto')
 
-    // Convert payload to string if it's an object
-    const payloadString = typeof payload === 'string' ? payload : JSON.stringify(payload)
-
     // Create signed payload with timestamp
-    const signedPayload = `${timestamp}.${payloadString}`
+    const signedPayload = `${timestamp}.${payload}`
 
     // Create HMAC signature
     const expectedSignature = crypto
