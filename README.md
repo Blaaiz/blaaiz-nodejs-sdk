@@ -286,11 +286,16 @@ const payout = await blaaiz.payouts.initiate({
   to_currency_id: "NGN",
   bank_id: "bank-id", // Required for NGN
   account_number: "0123456789",
-  phone_number: "+2348012345678" // Optional
+  phone_number: "+2348012345678", // Optional
+  note: "Acme Ltd" // Optional — appears in the transaction description; defaults to business name
 });
 
 console.log('Payout Status:', payout.data.transaction.status);
 ```
+
+#### Passing additional fields
+
+`payouts.initiate()` forwards the entire payload verbatim to the API, so any field documented in the [Blaaiz API reference](https://docs.business.blaaiz.com) can be included even if it isn't listed in this README. For example, `note` sets the transaction description (defaulting to the business name when omitted). This means the SDK stays compatible with new API fields without requiring an update here.
 
 #### Bank Transfer Payout (GBP)
 
