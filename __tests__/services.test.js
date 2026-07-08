@@ -931,6 +931,85 @@ describe('Service classes validate input and call makeRequest', () => {
         .toThrow('Webhook payload must be the raw request body string')
     })
 
+    test('verifySignature returns true for a raw body containing unicode / non-ASCII characters', () => {
+      const service = new WebhookService(client)
+      // Multi-byte UTF-8 characters (accents, CJK, emoji) prove the raw bytes
+      // are hashed directly rather than a re-encoded/normalised form.
+      const payload = '{"customer":"José Ñoño","note":"支払い完了 ✅","amount":100.5}'
+      const timestamp = '1234567890'
+      const secret = 'webhook_secret_key'
+
+      const crypto = require('crypto')
+      const signedPayload = `${timestamp}.${payload}`
+      const validSignature = crypto.createHmac('sha256', secret).update(signedPayload, 'utf8').digest('hex')
+
+      expect(service.verifySignature(payload, validSignature, timestamp, secret)).toBe(true)
+    })
+
+    test('verifySignature returns false when the payload is tampered after signing', () => {
+      const service = new WebhookService(client)
+      const originalPayload = '{"transaction_id":"txn_123","status":"completed","amount":100}'
+      const timestamp = '1234567890'
+      const secret = 'webhook_secret_key'
+
+      const crypto = require('crypto')
+      const signedPayload = `${timestamp}.${originalPayload}`
+      const signature = crypto.createHmac('sha256', secret).update(signedPayload, 'utf8').digest('hex')
+
+      // Attacker changes the amount but keeps the original signature.
+      const tamperedPayload = '{"transaction_id":"txn_123","status":"completed","amount":999999}'
+
+      expect(service.verifySignature(tamperedPayload, signature, timestamp, secret)).toBe(false)
+    })
+
+    test('verifySignature returns false for a wrong signature string', () => {
+      const service = new WebhookService(client)
+      const payload = '{"transaction_id":"txn_123","status":"completed"}'
+      const timestamp = '1234567890'
+      const secret = 'webhook_secret_key'
+      // Well-formed hex of the correct length, but not the real signature.
+      const wrongSignature = 'a'.repeat(64)
+
+      expect(service.verifySignature(payload, wrongSignature, timestamp, secret)).toBe(false)
+    })
+
+    test('verifySignature returns false when the timestamp differs from the one used to sign', () => {
+      const service = new WebhookService(client)
+      const payload = '{"transaction_id":"txn_123","status":"completed"}'
+      const signingTimestamp = '1234567890'
+      const secret = 'webhook_secret_key'
+
+      const crypto = require('crypto')
+      const signedPayload = `${signingTimestamp}.${payload}`
+      const signature = crypto.createHmac('sha256', secret).update(signedPayload, 'utf8').digest('hex')
+
+      // Verify with a different timestamp than the one that was signed.
+      const differentTimestamp = '9999999999'
+
+      expect(service.verifySignature(payload, signature, differentTimestamp, secret)).toBe(false)
+    })
+
+    test('verifySignature returns false when the secret is wrong', () => {
+      const service = new WebhookService(client)
+      const payload = '{"transaction_id":"txn_123","status":"completed"}'
+      const timestamp = '1234567890'
+
+      const crypto = require('crypto')
+      const signedPayload = `${timestamp}.${payload}`
+      const signature = crypto.createHmac('sha256', 'the_real_secret').update(signedPayload, 'utf8').digest('hex')
+
+      expect(service.verifySignature(payload, signature, timestamp, 'a_different_secret')).toBe(false)
+    })
+
+    test('verifySignature throws when the secret is missing/undefined', () => {
+      const service = new WebhookService(client)
+      const payload = '{"transaction_id":"txn_123","status":"completed"}'
+      const timestamp = '1234567890'
+
+      expect(() => service.verifySignature(payload, 'somesignature', timestamp, undefined))
+        .toThrow('Webhook secret is required for signature verification')
+    })
+
     test('constructEvent validates signature and returns event', () => {
       const service = new WebhookService(client)
       const payload = '{"transaction_id":"txn_123","status":"completed"}'
