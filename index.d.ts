@@ -4,7 +4,12 @@
 
 export interface BlaaizOptions {
   baseURL?: string;
+  base_url?: string;
   timeout?: number;
+  api_key?: string;
+  client_id?: string;
+  client_secret?: string;
+  oauth_scope?: string;
 }
 
 export interface BlaaizResponse<T = any> {
@@ -367,7 +372,8 @@ export declare class Blaaiz {
   public webhooks: WebhookService;
 
   constructor(apiKey: string, options?: BlaaizOptions);
-  
+  constructor(options: BlaaizOptions);
+
   testConnection(): Promise<boolean>;
   
   createCompletePayout(payoutConfig: {

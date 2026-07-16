@@ -29,6 +29,43 @@ const isConnected = await blaaiz.testConnection();
 console.log('API Connected:', isConnected);
 ```
 
+## Authentication
+
+The SDK supports two authentication methods.
+
+### OAuth 2.0 client credentials (recommended for new integrations)
+
+Provide a `client_id` and `client_secret` and the SDK handles the OAuth
+`client_credentials` flow for you: it fetches a bearer token from
+`/oauth/token`, caches it in memory, and refreshes it automatically shortly
+before it expires.
+
+```javascript
+const { Blaaiz } = require('blaaiz-nodejs-sdk');
+
+const blaaiz = new Blaaiz({
+  client_id: process.env.BLAAIZ_CLIENT_ID,
+  client_secret: process.env.BLAAIZ_CLIENT_SECRET,
+  // oauth_scope: 'wallet:read payout:create', // Optional: defaults to the full scope set
+  // baseURL: 'https://api.blaaiz.com',         // Optional: defaults to dev environment
+  // timeout: 30000                             // Optional: request timeout in milliseconds
+});
+```
+
+When `oauth_scope` is omitted the SDK requests the full set of supported scopes.
+
+### API key (legacy)
+
+API keys are still supported for existing integrations.
+
+```javascript
+const blaaiz = new Blaaiz('your-api-key-here');
+// or, using the options object:
+const blaaiz2 = new Blaaiz({ api_key: process.env.BLAAIZ_API_KEY });
+```
+
+When both OAuth credentials and an API key are configured, OAuth is used.
+
 ## Features
 
 - **Customer Management**: Create, update, and manage customers with KYC verification
