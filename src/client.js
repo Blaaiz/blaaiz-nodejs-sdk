@@ -103,9 +103,8 @@ class BlaaizAPIClient {
       )
     }
 
-    const expiresIn = (parsed.expires_in === undefined || parsed.expires_in === null)
-      ? 900
-      : parsed.expires_in
+    let expiresIn = Number(parsed.expires_in)
+    if (!Number.isFinite(expiresIn)) expiresIn = 900
     this.accessToken = parsed.access_token
     this.tokenExpiresAt = Math.floor(Date.now() / 1000) + expiresIn - 60
 

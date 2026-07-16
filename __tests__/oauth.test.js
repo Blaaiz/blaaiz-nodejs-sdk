@@ -127,6 +127,49 @@ describe('OAuth client-credentials', () => {
     server.close()
   })
 
+  test('coerces a string expires_in to a number and caches the token', async () => {
+    let tokenHits = 0
+    const { server, baseURL } = await startServer((req, res) => {
+      if (req.url === '/oauth/token') {
+        tokenHits += 1
+        res.writeHead(200, { 'Content-Type': 'application/json' })
+        res.end(JSON.stringify({ access_token: `tok-${tokenHits}`, expires_in: '3600' }))
+        return
+      }
+      res.writeHead(200, { 'Content-Type': 'application/json' })
+      res.end(JSON.stringify({ authorization: req.headers.authorization }))
+    })
+
+    const client = new BlaaizAPIClient({ client_id: 'id', client_secret: 'secret', baseURL })
+    const before = Math.floor(Date.now() / 1000)
+    const first = await client.makeRequest('GET', '/test')
+    const after = Math.floor(Date.now() / 1000)
+    const second = await client.makeRequest('GET', '/test')
+
+    expect(typeof client.tokenExpiresAt).toBe('number')
+    expect(client.tokenExpiresAt).toBeGreaterThanOrEqual(before + 3600 - 60)
+    expect(client.tokenExpiresAt).toBeLessThanOrEqual(after + 3600 - 60)
+    expect(tokenHits).toBe(1)
+    expect(first.data.authorization).toBe('Bearer tok-1')
+    expect(second.data.authorization).toBe('Bearer tok-1')
+    server.close()
+  })
+
+  test('falls back to a generic message on an HTTP error without error_description or message', async () => {
+    const { server, baseURL } = await startServer((req, res) => {
+      res.writeHead(500, { 'Content-Type': 'application/json' })
+      res.end(JSON.stringify({ error: 'server_error' }))
+    })
+
+    const client = new BlaaizAPIClient({ client_id: 'id', client_secret: 'secret', baseURL })
+    await expect(client.getOAuthToken()).rejects.toEqual(expect.objectContaining({
+      message: 'OAuth token request failed: HTTP 500',
+      status: 500,
+      code: 'server_error'
+    }))
+    server.close()
+  })
+
   test('uses the api key when only an api key is provided', async () => {
     const { server, baseURL } = await startServer((req, res) => {
       if (req.url === '/oauth/token') {
