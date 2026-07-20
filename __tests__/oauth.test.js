@@ -51,6 +51,28 @@ describe('OAuth client-credentials', () => {
     server.close()
   })
 
+  test('sends the SDK User-Agent on the token request (AWS WAF blocks UA-less requests with 403)', async () => {
+    let tokenHeaders = null
+    const { server, baseURL } = await startServer((req, res) => {
+      if (req.url === '/oauth/token') {
+        tokenHeaders = req.headers
+        res.writeHead(200, { 'Content-Type': 'application/json' })
+        res.end(JSON.stringify({ access_token: 'tok', expires_in: 3600 }))
+        return
+      }
+      res.writeHead(200, { 'Content-Type': 'application/json' })
+      res.end(JSON.stringify({}))
+    })
+
+    const client = new BlaaizAPIClient({ client_id: 'id', client_secret: 'secret', baseURL })
+    await client.getOAuthToken()
+
+    expect(tokenHeaders['user-agent']).toBe('Blaaiz-NodeJS-SDK/1.0.0')
+    expect(tokenHeaders.accept).toBe('application/json')
+    expect(tokenHeaders['content-type']).toBe('application/x-www-form-urlencoded')
+    server.close()
+  })
+
   test('caches the token and reuses it across requests', async () => {
     let tokenHits = 0
     const { server, baseURL } = await startServer((req, res) => {

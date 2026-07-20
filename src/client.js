@@ -128,6 +128,7 @@ class BlaaizAPIClient {
         path: url.pathname + url.search,
         method: 'POST',
         headers: {
+          ...this.defaultHeaders,
           'Content-Type': 'application/x-www-form-urlencoded',
           'Content-Length': Buffer.byteLength(body)
         },
