@@ -68,16 +68,20 @@ When both OAuth credentials and an API key are configured, OAuth is used.
 
 ## Features
 
-- **Customer Management**: Create, update, and manage customers with KYC verification
-- **Collections**: Support for multiple collection methods (Open Banking, Card, Crypto, Bank Transfer, Interac)
+- **Customer Management**: Create, update, and manage individual and business customers, including the business KYB flow (beneficial owners and documents)
+- **Collections**: Open Banking, Card, Crypto, and Interac money requests
 - **Payouts**: Bank transfers, Interac, ACH, Wire, and Crypto payouts across multiple currencies
+- **Swaps**: Move funds between your business wallets
+- **Refunds**: Refund a collection back to its source
+- **Merchant reference**: Attach your own reference to payouts and collections, unique per business
 - **Virtual Bank Accounts**: Create and manage virtual accounts for NGN collections
 - **Wallets**: Multi-currency wallet management
 - **Transactions**: Transaction history and status tracking
 - **Webhooks**: Webhook configuration and management with signature verification
 - **Files**: Document upload with pre-signed URLs
 - **Fees**: Real-time fee calculations and breakdowns
-- **Banks & Currencies**: Access to supported banks and currencies
+- **Banks & Currencies**: Bank lists, account name lookup, GBP payee and EUR IBAN verification
+- **Rates**: List the exchange rates available to your business
 
 ## Supported Currencies & Methods
 
@@ -171,6 +175,53 @@ const beneficiary = await blaaiz.customers.getBeneficiary('customer-id', 'benefi
 console.log('Beneficiary:', beneficiary.data);
 ```
 
+### Business Customer KYB
+
+Business-type customers verify through the KYB flow: add beneficial owners on create/update, upload each owner's ID files, then submit.
+
+```javascript
+// Upgrade a MINIMAL business customer to FULL KYB (owners required, all currencies)
+await blaaiz.customers.upgradeKybScope('customer-id', {
+  owners: [
+    { first_name: "Jane", last_name: "Doe", ownership_percentage: 100 }
+  ]
+});
+
+// Mint an upload URL for an owner's ID document, then register the uploaded file
+const presigned = await blaaiz.customers.getOwnerFilePresignedUrl('customer-id', 'owner-id', {
+  file_category: "id_document_front" // or "id_document_back"
+});
+await blaaiz.customers.uploadOwnerFiles('customer-id', 'owner-id', {
+  id_document_front: presigned.data.file_id
+});
+
+// Remove an owner
+await blaaiz.customers.deleteOwner('customer-id', 'owner-id');
+
+// Submit the customer for verification
+await blaaiz.customers.submit('customer-id');
+```
+
+### Business Customer Documents
+
+KYB documents (certificate of incorporation, and similar) attach to business customers.
+
+```javascript
+// Mint an upload URL, PUT the file to it, then register the document
+const presigned = await blaaiz.customers.getDocumentPresignedUrl('customer-id');
+
+const document = await blaaiz.customers.createDocument('customer-id', {
+  type: "CERTIFICATE_OF_INCORPORATION",
+  name: "Certificate of Incorporation.pdf",
+  file_id: presigned.data.file_id,
+  description: "Optional description"
+});
+
+const documents = await blaaiz.customers.listDocuments('customer-id');
+await blaaiz.customers.updateDocument('customer-id', document.data.data.id, { name: "Renamed.pdf" });
+await blaaiz.customers.deleteDocument('customer-id', document.data.data.id);
+```
+
 ### File Management & KYC
 
 #### Upload Customer Documents
@@ -236,16 +287,13 @@ const fileAssociation = await blaaiz.customers.uploadFiles('customer-id', {
 
 ```javascript
 const collection = await blaaiz.collections.initiate({
-  customer_id: "customer-id",
-  wallet_id: "wallet-id",
-  amount: 100.00,
-  currency: "EUR", // EUR, GBP, NGN, USD
   method: "open_banking",
-  phone_number: "+1234567890", // Optional
-  email: "customer@example.com", // Optional
-  reference: "your-reference", // Optional
-  narration: "Payment description", // Optional
-  redirect_url: "https://your-site.com/callback" // Optional
+  amount: 100.00,
+  wallet_id: "wallet-id",
+  customer_id: "customer-id", // Optional for open_banking
+  phone: "+1234567890", // Optional
+  redirect_url: "https://your-site.com/callback", // Optional (HTTPS)
+  merchant_reference: "ORDER-1001" // Optional; your own reference, unique per business
 });
 
 console.log('Payment URL:', collection.data.url);
@@ -256,11 +304,15 @@ console.log('Transaction ID:', collection.data.transaction_id);
 
 ```javascript
 const collection = await blaaiz.collections.initiate({
-  customer_id: "customer-id",
-  wallet_id: "wallet-id",
+  method: "card",
   amount: 5000,
-  currency: "NGN",
-  method: "card"
+  wallet_id: "wallet-id",
+  customer_id: "customer-id", // Required for card
+  card_holder_name: "John Doe",
+  card_number: "5123450000000008",
+  expiry: "12/30", // MM/YY
+  cvc: "123",
+  merchant_reference: "ORDER-1002" // Optional; unique per business
 });
 
 console.log('Payment URL:', collection.data.url);
@@ -309,6 +361,23 @@ const attachment = await blaaiz.collections.attachCustomer({
 });
 ```
 
+#### Initiate Interac Money Request (CAD)
+
+```javascript
+const request = await blaaiz.collections.initiateInteracMoneyRequest({
+  amount: 100,
+  email: "payer@example.com", // The payer receives the Interac request here
+  customer_name: "Jane Doe", // Optional
+  customer_id: "customer-id", // Optional
+  expiry_hours: 24, // Optional (1-120)
+  note: "Invoice 77" // Optional
+});
+
+console.log('Transaction ID:', request.data.transaction_id);
+console.log('Reference:', request.data.reference);
+console.log('Expires at:', request.data.expires_at);
+```
+
 ### Payouts
 
 #### Bank Transfer Payout (NGN)
@@ -324,10 +393,12 @@ const payout = await blaaiz.payouts.initiate({
   bank_id: "bank-id", // Required for NGN
   account_number: "0123456789",
   phone_number: "+2348012345678", // Optional
-  note: "Acme Ltd" // Optional — appears in the transaction description; defaults to business name
+  note: "Acme Ltd", // Optional — appears in the transaction description; defaults to business name
+  merchant_reference: "ORDER-1001" // Optional; your own reference, unique per business
 });
 
 console.log('Payout Status:', payout.data.transaction.status);
+console.log('Merchant Reference:', payout.data.transaction.merchant_reference);
 ```
 
 #### Passing additional fields
@@ -454,6 +525,47 @@ const payout = await blaaiz.payouts.initiate({
 });
 ```
 
+### Swaps
+
+Swap funds between two of your business wallets.
+
+```javascript
+const swap = await blaaiz.swaps.initiate({
+  from_business_wallet_id: "ngn-wallet-id",
+  to_business_wallet_id: "usd-wallet-id",
+  amount: 100000,
+  amount_type: "from" // "from" (default) = amount leaves source; "to" = amount lands in destination
+});
+
+console.log('Swap:', swap.data.business_swap_transaction);
+```
+
+### Refunds
+
+Refund an API collection back to its source.
+
+```javascript
+const refund = await blaaiz.refunds.initiate({
+  transaction_id: "collection-transaction-id",
+  reason: "Customer request", // Optional
+  reference: "your-refund-reference" // Optional, unique per business
+});
+
+console.log('Refund status:', refund.data.data.status);
+
+// Retrieve a refund later
+const existing = await blaaiz.refunds.get('refund-id');
+```
+
+### Rates
+
+```javascript
+const rates = await blaaiz.rates.list();
+
+// Filter by pair
+const filtered = await blaaiz.rates.list({ search_term: "USD_NGN" });
+```
+
 ### Virtual Bank Accounts
 
 #### Create Virtual Bank Account
@@ -570,6 +682,28 @@ const accountInfo = await blaaiz.banks.lookupAccount({
 });
 
 console.log('Account Name:', accountInfo.data.account_name);
+```
+
+#### Verify a GBP Payee (Confirmation of Payee)
+
+```javascript
+const result = await blaaiz.banks.verifyPayee({
+  sort_code: "123456",
+  account_number: "12345678",
+  account_name: "Jane Doe"
+});
+
+console.log('Matched:', result.data.matched);
+```
+
+#### Verify an EUR IBAN (SEPA reachability)
+
+```javascript
+const result = await blaaiz.banks.verifyIban({
+  iban: "DE89370400440532013000"
+});
+
+console.log('SEPA reachable:', result.data.sepa_reachable);
 ```
 
 #### List Currencies
