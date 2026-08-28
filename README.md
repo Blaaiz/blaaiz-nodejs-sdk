@@ -822,9 +822,8 @@ const completeCollectionResult = await blaaiz.createCompleteCollection({
     id_number: "ABC123456"
   },
   collectionData: {
-    method: "card",
+    method: "open_banking",
     amount: 5000,
-    currency: "NGN",
     wallet_id: "wallet-id"
   },
   createVBA: true // Optionally create a virtual bank account

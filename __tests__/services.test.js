@@ -1243,7 +1243,6 @@ describe('Service classes validate input and call makeRequest', () => {
     })
   })
 
-
   describe('WebhookService replay', () => {
     test('replay targets the webhook-replay endpoint', async () => {
       const service = new WebhookService(client)
