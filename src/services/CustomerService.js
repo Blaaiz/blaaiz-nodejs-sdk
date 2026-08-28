@@ -4,7 +4,7 @@ class CustomerService {
   }
 
   async create (customerData) {
-    const requiredFields = ['type', 'email', 'country', 'id_type', 'id_number']
+    const requiredFields = ['type', 'email', 'country']
     for (const field of requiredFields) {
       if (!customerData[field]) {
         throw new Error(`${field} is required`)
@@ -12,14 +12,21 @@ class CustomerService {
     }
 
     if (customerData.type === 'individual') {
-      if (!customerData.first_name) {
-        throw new Error('first_name is required when type is individual')
+      // Personal-ID fields identify an individual; they are prohibited for businesses.
+      const individualFields = ['first_name', 'last_name', 'id_type', 'id_number']
+      for (const field of individualFields) {
+        if (!customerData[field]) {
+          throw new Error(`${field} is required when type is individual`)
+        }
       }
-      if (!customerData.last_name) {
-        throw new Error('last_name is required when type is individual')
+    } else if (customerData.type === 'business') {
+      // Businesses identify via registration_number + incorporation_country, not personal ID.
+      const businessFields = ['business_name', 'registration_number', 'incorporation_country']
+      for (const field of businessFields) {
+        if (!customerData[field]) {
+          throw new Error(`${field} is required when type is business`)
+        }
       }
-    } else if (customerData.type === 'business' && !customerData.business_name) {
-      throw new Error('business_name is required when type is business')
     }
 
     return this.client.makeRequest('POST', '/api/external/customer', customerData)
@@ -61,7 +68,7 @@ class CustomerService {
     if (!customerId) {
       throw new Error('Customer ID is required')
     }
-    return this.client.makeRequest('PUT', `/api/external/customer/${customerId}/files`, fileData)
+    return this.client.makeRequest('POST', `/api/external/customer/${customerId}/files`, fileData)
   }
 
   async listBeneficiaries (customerId) {
@@ -79,6 +86,116 @@ class CustomerService {
       throw new Error('Beneficiary ID is required')
     }
     return this.client.makeRequest('GET', `/api/external/customer/${customerId}/beneficiary/${beneficiaryId}`)
+  }
+
+  async submit (customerId) {
+    if (!customerId) {
+      throw new Error('Customer ID is required')
+    }
+    return this.client.makeRequest('POST', `/api/external/customer/${customerId}/submit`)
+  }
+
+  async upgradeKybScope (customerId, upgradeData) {
+    if (!customerId) {
+      throw new Error('Customer ID is required')
+    }
+    if (!upgradeData || !Array.isArray(upgradeData.owners) || upgradeData.owners.length === 0) {
+      throw new Error('owners is required')
+    }
+    return this.client.makeRequest('POST', `/api/external/customer/${customerId}/upgrade-kyb-scope`, upgradeData)
+  }
+
+  async deleteOwner (customerId, ownerId) {
+    if (!customerId) {
+      throw new Error('Customer ID is required')
+    }
+    if (!ownerId) {
+      throw new Error('Owner ID is required')
+    }
+    return this.client.makeRequest('DELETE', `/api/external/customer/${customerId}/owner/${ownerId}`)
+  }
+
+  async getOwnerFilePresignedUrl (customerId, ownerId, presignedData) {
+    if (!customerId) {
+      throw new Error('Customer ID is required')
+    }
+    if (!ownerId) {
+      throw new Error('Owner ID is required')
+    }
+    if (!presignedData || !presignedData.file_category) {
+      throw new Error('file_category is required')
+    }
+    return this.client.makeRequest('POST', `/api/external/customer/${customerId}/owner/${ownerId}/file/presigned-url`, presignedData)
+  }
+
+  async uploadOwnerFiles (customerId, ownerId, fileData) {
+    if (!customerId) {
+      throw new Error('Customer ID is required')
+    }
+    if (!ownerId) {
+      throw new Error('Owner ID is required')
+    }
+    if (!fileData || !fileData.id_document_front) {
+      throw new Error('id_document_front is required')
+    }
+    return this.client.makeRequest('POST', `/api/external/customer/${customerId}/owner/${ownerId}/files`, fileData)
+  }
+
+  async listDocuments (customerId) {
+    if (!customerId) {
+      throw new Error('Customer ID is required')
+    }
+    return this.client.makeRequest('GET', `/api/external/customer/${customerId}/document`)
+  }
+
+  async getDocument (customerId, documentId) {
+    if (!customerId) {
+      throw new Error('Customer ID is required')
+    }
+    if (!documentId) {
+      throw new Error('Document ID is required')
+    }
+    return this.client.makeRequest('GET', `/api/external/customer/${customerId}/document/${documentId}`)
+  }
+
+  async getDocumentPresignedUrl (customerId) {
+    if (!customerId) {
+      throw new Error('Customer ID is required')
+    }
+    return this.client.makeRequest('POST', `/api/external/customer/${customerId}/document/presigned-url`)
+  }
+
+  async createDocument (customerId, documentData) {
+    if (!customerId) {
+      throw new Error('Customer ID is required')
+    }
+    const requiredFields = ['type', 'name', 'file_id']
+    for (const field of requiredFields) {
+      if (!documentData || !documentData[field]) {
+        throw new Error(`${field} is required`)
+      }
+    }
+    return this.client.makeRequest('POST', `/api/external/customer/${customerId}/document`, documentData)
+  }
+
+  async updateDocument (customerId, documentId, documentData) {
+    if (!customerId) {
+      throw new Error('Customer ID is required')
+    }
+    if (!documentId) {
+      throw new Error('Document ID is required')
+    }
+    return this.client.makeRequest('PUT', `/api/external/customer/${customerId}/document/${documentId}`, documentData)
+  }
+
+  async deleteDocument (customerId, documentId) {
+    if (!customerId) {
+      throw new Error('Customer ID is required')
+    }
+    if (!documentId) {
+      throw new Error('Document ID is required')
+    }
+    return this.client.makeRequest('DELETE', `/api/external/customer/${customerId}/document/${documentId}`)
   }
 
   async uploadFileComplete (customerId, fileOptions) {
@@ -102,8 +219,8 @@ class CustomerService {
       throw new Error('file_category is required')
     }
 
-    if (!['identity', 'proof_of_address', 'liveness_check'].includes(file_category)) { // eslint-disable-line camelcase
-      throw new Error('file_category must be one of: identity, proof_of_address, liveness_check')
+    if (!['identity', 'identity_back', 'proof_of_address', 'liveness_check'].includes(file_category)) { // eslint-disable-line camelcase
+      throw new Error('file_category must be one of: identity, identity_back, proof_of_address, liveness_check')
     }
 
     try {
@@ -205,6 +322,7 @@ class CustomerService {
       // Map file category to the correct field name expected by Laravel API
       const fileFieldMapping = {
         identity: 'id_file',
+        identity_back: 'id_file_back',
         liveness_check: 'liveness_check_file',
         proof_of_address: 'proof_of_address_file'
       }
@@ -314,7 +432,7 @@ class CustomerService {
         path: urlObj.pathname + urlObj.search,
         method: 'GET',
         headers: {
-          'User-Agent': 'Blaaiz-NodeJS-SDK/1.0.0'
+          'User-Agent': 'Blaaiz-NodeJS-SDK/1.4.0'
         }
       }
 

@@ -18,8 +18,11 @@ class WebhookService {
     return this.client.makeRequest('GET', '/api/external/webhook')
   }
 
-  async update (webhookData) {
-    return this.client.makeRequest('PUT', '/api/external/webhook', webhookData)
+  async update (webhookId, webhookData) {
+    if (!webhookId) {
+      throw new Error('Webhook ID is required')
+    }
+    return this.client.makeRequest('PUT', `/api/external/webhook/${webhookId}`, webhookData)
   }
 
   async replay (replayData) {
@@ -30,7 +33,7 @@ class WebhookService {
       }
     }
 
-    return this.client.makeRequest('POST', '/api/external/webhook/replay', replayData)
+    return this.client.makeRequest('POST', '/api/external/webhook-replay', replayData)
   }
 
   async simulateInteracWebhook (simulateData) {

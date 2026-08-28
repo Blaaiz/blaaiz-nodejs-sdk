@@ -1,5 +1,5 @@
 class BlaaizError extends Error {
-  constructor(message, status, code) {
+  constructor (message, status, code) {
     super(message)
     this.name = 'BlaaizError'
     this.status = status

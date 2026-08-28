@@ -9,6 +9,9 @@ const CurrencyService = require('../src/services/CurrencyService')
 const FeesService = require('../src/services/FeesService')
 const FileService = require('../src/services/FileService')
 const WebhookService = require('../src/services/WebhookService')
+const RateService = require('../src/services/RateService')
+const SwapService = require('../src/services/SwapService')
+const RefundService = require('../src/services/RefundService')
 
 describe('Service classes validate input and call makeRequest', () => {
   let client
@@ -78,8 +81,8 @@ describe('Service classes validate input and call makeRequest', () => {
         type: 'business',
         email: 'e@example.com',
         country: 'NG',
-        id_type: 'passport',
-        id_number: '1'
+        registration_number: 'RC-123456',
+        incorporation_country: 'NG'
       }
       await service.create(data)
       expect(client.makeRequest).toHaveBeenCalledWith('POST', '/api/external/customer', data)
@@ -147,7 +150,7 @@ describe('Service classes validate input and call makeRequest', () => {
       await expect(service.uploadFileComplete('cust-123')).rejects.toThrow('File options are required')
       await expect(service.uploadFileComplete('cust-123', {})).rejects.toThrow('File is required')
       await expect(service.uploadFileComplete('cust-123', { file: Buffer.from('test') })).rejects.toThrow('file_category is required')
-      await expect(service.uploadFileComplete('cust-123', { file: Buffer.from('test'), file_category: 'invalid' })).rejects.toThrow('file_category must be one of: identity, proof_of_address, liveness_check')
+      await expect(service.uploadFileComplete('cust-123', { file: Buffer.from('test'), file_category: 'invalid' })).rejects.toThrow('file_category must be one of: identity, identity_back, proof_of_address, liveness_check')
     })
 
     test('uploadFileComplete handles S3 upload error', async () => {
@@ -513,26 +516,24 @@ describe('Service classes validate input and call makeRequest', () => {
   describe('CollectionService', () => {
     test('initiate validates required fields', async () => {
       const service = new CollectionService(client)
-      await expect(service.initiate({})).rejects.toThrow('customer_id is required')
+      await expect(service.initiate({})).rejects.toThrow('method is required')
     })
 
     test('initiate validates all required fields in order', async () => {
       const service = new CollectionService(client)
-      await expect(service.initiate({ customer_id: 'c' })).rejects.toThrow('wallet_id is required')
-      await expect(service.initiate({ customer_id: 'c', wallet_id: 'w' })).rejects.toThrow('amount is required')
-      await expect(service.initiate({ customer_id: 'c', wallet_id: 'w', amount: 100 })).rejects.toThrow('currency is required')
-      await expect(service.initiate({ customer_id: 'c', wallet_id: 'w', amount: 100, currency: 'NGN' })).rejects.toThrow('method is required')
+      await expect(service.initiate({ method: 'open_banking' })).rejects.toThrow('amount is required')
+      await expect(service.initiate({ method: 'open_banking', amount: 100 })).rejects.toThrow('wallet_id is required')
     })
 
-    test('initiate calls makeRequest with all required fields', async () => {
+    test('initiate requires customer and card details for card method', async () => {
       const service = new CollectionService(client)
-      const data = {
-        customer_id: 'c',
-        wallet_id: 'w',
-        amount: 100,
-        currency: 'NGN',
-        method: 'card'
-      }
+      await expect(service.initiate({ method: 'card', amount: 100, wallet_id: 'w' })).rejects.toThrow('customer_id is required for card method')
+      await expect(service.initiate({ method: 'card', amount: 100, wallet_id: 'w', customer_id: 'c' })).rejects.toThrow('card_holder_name is required for card method')
+    })
+
+    test('initiate calls makeRequest for open banking', async () => {
+      const service = new CollectionService(client)
+      const data = { method: 'open_banking', amount: 100, wallet_id: 'w' }
       await service.initiate(data)
       expect(client.makeRequest).toHaveBeenCalledWith('POST', '/api/external/collection', data)
     })
@@ -1063,6 +1064,262 @@ describe('Service classes validate input and call makeRequest', () => {
 
       expect(() => service.constructEvent(payload, signature, timestamp, secret))
         .toThrow('Webhook payload must be the raw request body string')
+    })
+  })
+
+  describe('RateService', () => {
+    test('list calls makeRequest without filters', async () => {
+      const service = new RateService(client)
+      await service.list()
+      expect(client.makeRequest).toHaveBeenCalledWith('GET', '/api/external/rate')
+    })
+
+    test('list forwards search_term as a query parameter', async () => {
+      const service = new RateService(client)
+      await service.list({ search_term: 'USD_NGN' })
+      const [method, endpoint] = client.makeRequest.mock.calls[0]
+      expect(method).toBe('GET')
+      expect(endpoint).toBe('/api/external/rate?search_term=USD_NGN')
+    })
+  })
+
+  describe('SwapService', () => {
+    test('initiate validates required fields in order', async () => {
+      const service = new SwapService(client)
+      await expect(service.initiate({})).rejects.toThrow('from_business_wallet_id is required')
+      await expect(service.initiate({ from_business_wallet_id: 'a' })).rejects.toThrow('to_business_wallet_id is required')
+      await expect(service.initiate({ from_business_wallet_id: 'a', to_business_wallet_id: 'b' })).rejects.toThrow('amount is required')
+    })
+
+    test('initiate calls makeRequest', async () => {
+      const service = new SwapService(client)
+      const data = { from_business_wallet_id: 'a', to_business_wallet_id: 'b', amount: 10 }
+      await service.initiate(data)
+      expect(client.makeRequest).toHaveBeenCalledWith('POST', '/api/external/swap', data)
+    })
+  })
+
+  describe('RefundService', () => {
+    test('initiate validates transaction_id', async () => {
+      const service = new RefundService(client)
+      await expect(service.initiate({})).rejects.toThrow('transaction_id is required')
+    })
+
+    test('initiate calls makeRequest', async () => {
+      const service = new RefundService(client)
+      const data = { transaction_id: 'txn-1', reason: 'duplicate' }
+      await service.initiate(data)
+      expect(client.makeRequest).toHaveBeenCalledWith('POST', '/api/external/refund', data)
+    })
+
+    test('get validates refund id', async () => {
+      const service = new RefundService(client)
+      await expect(service.get()).rejects.toThrow('Refund ID is required')
+    })
+
+    test('get calls makeRequest', async () => {
+      const service = new RefundService(client)
+      await service.get('refund-1')
+      expect(client.makeRequest).toHaveBeenCalledWith('GET', '/api/external/refund/refund-1')
+    })
+  })
+
+  describe('BankService verification', () => {
+    test('verifyPayee validates required fields', async () => {
+      const service = new BankService(client)
+      await expect(service.verifyPayee({})).rejects.toThrow('sort_code is required')
+    })
+
+    test('verifyPayee calls makeRequest', async () => {
+      const service = new BankService(client)
+      const data = { sort_code: '11', account_number: '22', account_name: 'Jane' }
+      await service.verifyPayee(data)
+      expect(client.makeRequest).toHaveBeenCalledWith('POST', '/api/external/bank/payee-verification', data)
+    })
+
+    test('verifyIban validates iban', async () => {
+      const service = new BankService(client)
+      await expect(service.verifyIban({})).rejects.toThrow('iban is required')
+    })
+
+    test('verifyIban calls makeRequest', async () => {
+      const service = new BankService(client)
+      const data = { iban: 'DE89370400440532013000' }
+      await service.verifyIban(data)
+      expect(client.makeRequest).toHaveBeenCalledWith('POST', '/api/external/bank/iban-verification', data)
+    })
+
+    test('list forwards filters as query parameters', async () => {
+      const service = new BankService(client)
+      await service.list({ currency: 'NGN' })
+      expect(client.makeRequest).toHaveBeenCalledWith('GET', '/api/external/bank?currency=NGN')
+    })
+  })
+
+  describe('CollectionService interac money request', () => {
+    test('initiateInteracMoneyRequest validates required fields', async () => {
+      const service = new CollectionService(client)
+      await expect(service.initiateInteracMoneyRequest({})).rejects.toThrow('amount is required')
+      await expect(service.initiateInteracMoneyRequest({ amount: 10 })).rejects.toThrow('email is required')
+    })
+
+    test('initiateInteracMoneyRequest calls makeRequest', async () => {
+      const service = new CollectionService(client)
+      const data = { amount: 10, email: 'payer@example.com' }
+      await service.initiateInteracMoneyRequest(data)
+      expect(client.makeRequest).toHaveBeenCalledWith('POST', '/api/external/collection/interac-money-request', data)
+    })
+  })
+
+  describe('CustomerService KYB and documents', () => {
+    test('create requires registration_number for business', async () => {
+      const service = new CustomerService(client)
+      await expect(service.create({ type: 'business', email: 'e@x.com', country: 'NG', business_name: 'Acme' }))
+        .rejects.toThrow('registration_number is required when type is business')
+    })
+
+    test('create requires id_type for individual', async () => {
+      const service = new CustomerService(client)
+      await expect(service.create({ type: 'individual', email: 'e@x.com', country: 'NG', first_name: 'A', last_name: 'B' }))
+        .rejects.toThrow('id_type is required when type is individual')
+    })
+
+    test('submit calls makeRequest', async () => {
+      const service = new CustomerService(client)
+      await service.submit('cust-1')
+      expect(client.makeRequest).toHaveBeenCalledWith('POST', '/api/external/customer/cust-1/submit')
+    })
+
+    test('upgradeKybScope validates owners', async () => {
+      const service = new CustomerService(client)
+      await expect(service.upgradeKybScope('cust-1', {})).rejects.toThrow('owners is required')
+    })
+
+    test('upgradeKybScope calls makeRequest', async () => {
+      const service = new CustomerService(client)
+      const data = { owners: [{ first_name: 'A', last_name: 'B', ownership_percentage: 100 }] }
+      await service.upgradeKybScope('cust-1', data)
+      expect(client.makeRequest).toHaveBeenCalledWith('POST', '/api/external/customer/cust-1/upgrade-kyb-scope', data)
+    })
+
+    test('deleteOwner calls makeRequest', async () => {
+      const service = new CustomerService(client)
+      await service.deleteOwner('cust-1', 'own-1')
+      expect(client.makeRequest).toHaveBeenCalledWith('DELETE', '/api/external/customer/cust-1/owner/own-1')
+    })
+
+    test('getOwnerFilePresignedUrl validates file_category', async () => {
+      const service = new CustomerService(client)
+      await expect(service.getOwnerFilePresignedUrl('cust-1', 'own-1', {})).rejects.toThrow('file_category is required')
+    })
+
+    test('uploadOwnerFiles validates id_document_front', async () => {
+      const service = new CustomerService(client)
+      await expect(service.uploadOwnerFiles('cust-1', 'own-1', {})).rejects.toThrow('id_document_front is required')
+    })
+
+    test('createDocument validates required fields', async () => {
+      const service = new CustomerService(client)
+      await expect(service.createDocument('cust-1', {})).rejects.toThrow('type is required')
+    })
+
+    test('createDocument calls makeRequest', async () => {
+      const service = new CustomerService(client)
+      const data = { type: 'CERTIFICATE_OF_INCORPORATION', name: 'CoI.pdf', file_id: 'file-1' }
+      await service.createDocument('cust-1', data)
+      expect(client.makeRequest).toHaveBeenCalledWith('POST', '/api/external/customer/cust-1/document', data)
+    })
+
+    test('listDocuments calls makeRequest', async () => {
+      const service = new CustomerService(client)
+      await service.listDocuments('cust-1')
+      expect(client.makeRequest).toHaveBeenCalledWith('GET', '/api/external/customer/cust-1/document')
+    })
+
+    test('deleteDocument calls makeRequest', async () => {
+      const service = new CustomerService(client)
+      await service.deleteDocument('cust-1', 'doc-1')
+      expect(client.makeRequest).toHaveBeenCalledWith('DELETE', '/api/external/customer/cust-1/document/doc-1')
+    })
+  })
+
+  describe('WebhookService replay', () => {
+    test('replay targets the webhook-replay endpoint', async () => {
+      const service = new WebhookService(client)
+      await service.replay({ transaction_id: 'txn-1' })
+      expect(client.makeRequest).toHaveBeenCalledWith('POST', '/api/external/webhook-replay', { transaction_id: 'txn-1' })
+    })
+
+    test('update requires a webhook id and targets that record', async () => {
+      const service = new WebhookService(client)
+      await expect(service.update()).rejects.toThrow('Webhook ID is required')
+      const data = { collection_url: 'https://x/c', payout_url: 'https://x/p' }
+      await service.update('wh-1', data)
+      expect(client.makeRequest).toHaveBeenCalledWith('PUT', '/api/external/webhook/wh-1', data)
+    })
+  })
+
+  describe('review-sweep coverage', () => {
+    test('customer.uploadFiles uses POST', async () => {
+      const service = new CustomerService(client)
+      const data = { id_file: 'file-1' }
+      await service.uploadFiles('cust-1', data)
+      expect(client.makeRequest).toHaveBeenCalledWith('POST', '/api/external/customer/cust-1/files', data)
+    })
+
+    test('collection.initiateCrypto validates required fields', async () => {
+      const service = new CollectionService(client)
+      await expect(service.initiateCrypto({ amount: 1, wallet_id: 'w', token: 'USDT' })).rejects.toThrow('network is required')
+    })
+
+    test('collection.initiateCrypto calls makeRequest', async () => {
+      const service = new CollectionService(client)
+      const data = { amount: 1, wallet_id: 'w', network: 'ETHEREUM_MAINNET', token: 'USDT' }
+      await service.initiateCrypto(data)
+      expect(client.makeRequest).toHaveBeenCalledWith('POST', '/api/external/collection/crypto', data)
+    })
+
+    test('collection.getCryptoNetworks hits the bare path and forwards filters', async () => {
+      const service = new CollectionService(client)
+      await service.getCryptoNetworks()
+      expect(client.makeRequest).toHaveBeenCalledWith('GET', '/api/external/collection/crypto/networks')
+      await service.getCryptoNetworks({ transaction_type: 'collection' })
+      expect(client.makeRequest).toHaveBeenCalledWith('GET', '/api/external/collection/crypto/networks?transaction_type=collection')
+    })
+
+    test('customer document read methods hit the right paths', async () => {
+      const service = new CustomerService(client)
+      await service.getDocument('cust-1', 'doc-1')
+      expect(client.makeRequest).toHaveBeenCalledWith('GET', '/api/external/customer/cust-1/document/doc-1')
+      await service.getDocumentPresignedUrl('cust-1')
+      expect(client.makeRequest).toHaveBeenCalledWith('POST', '/api/external/customer/cust-1/document/presigned-url')
+      const upd = { name: 'x' }
+      await service.updateDocument('cust-1', 'doc-1', upd)
+      expect(client.makeRequest).toHaveBeenCalledWith('PUT', '/api/external/customer/cust-1/document/doc-1', upd)
+    })
+
+    test('customer owner file methods hit the right paths', async () => {
+      const service = new CustomerService(client)
+      const p = { file_category: 'id_document_front' }
+      await service.getOwnerFilePresignedUrl('cust-1', 'own-1', p)
+      expect(client.makeRequest).toHaveBeenCalledWith('POST', '/api/external/customer/cust-1/owner/own-1/file/presigned-url', p)
+      const f = { id_document_front: 'file-1' }
+      await service.uploadOwnerFiles('cust-1', 'own-1', f)
+      expect(client.makeRequest).toHaveBeenCalledWith('POST', '/api/external/customer/cust-1/owner/own-1/files', f)
+    })
+
+    test('uploadFileComplete maps identity_back to id_file_back', async () => {
+      const service = new CustomerService(client)
+      client.makeRequest
+        .mockResolvedValueOnce({ data: { url: 'https://s3/x', file_id: 'file-9' } })
+        .mockResolvedValueOnce({ data: { success: true } })
+      service._uploadToS3 = jest.fn().mockResolvedValue({ status: 200 })
+      await service.uploadFileComplete('cust-1', {
+        file: Buffer.from('test'),
+        file_category: 'identity_back',
+        content_type: 'application/pdf'
+      })
+      expect(client.makeRequest).toHaveBeenCalledWith('POST', '/api/external/customer/cust-1/files', { id_file_back: 'file-9' })
     })
   })
 })

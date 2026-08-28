@@ -12,6 +12,9 @@ const CurrencyService = require('./services/CurrencyService')
 const FeesService = require('./services/FeesService')
 const FileService = require('./services/FileService')
 const WebhookService = require('./services/WebhookService')
+const RateService = require('./services/RateService')
+const SwapService = require('./services/SwapService')
+const RefundService = require('./services/RefundService')
 
 class Blaaiz {
   constructor (apiKey, options = {}) {
@@ -28,6 +31,9 @@ class Blaaiz {
     this.fees = new FeesService(this.client)
     this.files = new FileService(this.client)
     this.webhooks = new WebhookService(this.client)
+    this.rates = new RateService(this.client)
+    this.swaps = new SwapService(this.client)
+    this.refunds = new RefundService(this.client)
   }
 
   async testConnection () {
@@ -126,7 +132,10 @@ module.exports = {
   CurrencyService,
   FeesService,
   FileService,
-  WebhookService
+  WebhookService,
+  RateService,
+  SwapService,
+  RefundService
 }
 
 module.exports.default = Blaaiz

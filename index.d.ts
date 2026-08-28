@@ -99,12 +99,69 @@ export interface FileUploadOptions {
 }
 
 // Collection Types
+export type CustomerDocumentType =
+  | 'CERTIFICATE_OF_INCORPORATION'
+  | 'ARTICLES_OF_INCORPORATION'
+  | 'BENEFICIAL_OWNERSHIP_CERTIFICATE'
+  | 'INCORPORATION_DOCUMENTS'
+  | 'CAC_STATUS_REPORT'
+  | 'ACCOUNT_AGREEMENT'
+  | 'PROOF_OF_ADDRESS'
+  | 'BANK_STATEMENT'
+  | 'LICENSE'
+  | 'SHARE_REGISTRATION'
+  | 'COMPANY_OWNERSHIP_STRUCTURE'
+  | 'DIRECTORS_REGISTER'
+  | 'OTHER';
+
+export interface CustomerDocumentData {
+  type: CustomerDocumentType;
+  name: string;
+  file_id: string;
+  description?: string;
+}
+
+export interface CustomerDocument {
+  id: string;
+  business_customer_id: string;
+  type: CustomerDocumentType | null;
+  name: string;
+  extension: string | null;
+  description: string | null;
+  status: 'PENDING' | 'PROCESSING' | 'APPROVED' | 'REJECTED';
+  admin_comments: string[] | null;
+  url: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface CollectionData {
-  method: 'open_banking' | 'card' | 'bank_transfer' | 'crypto';
+  method: 'open_banking' | 'card';
   amount: number;
-  customer_id?: string;
   wallet_id: string;
+  customer_id?: string;
   phone?: string;
+  card_holder_name?: string;
+  card_number?: string;
+  expiry?: string;
+  cvc?: string;
+  redirect_url?: string;
+  merchant_reference?: string;
+}
+
+export interface InteracMoneyRequestData {
+  amount: number;
+  email: string;
+  customer_name?: string;
+  customer_id?: string;
+  expiry_hours?: number;
+  note?: string;
+}
+
+export interface AcceptInteracMoneyRequestData {
+  reference_number: string;
+  security_answer?: string;
+  email?: string;
 }
 
 export interface CryptoCollectionData {
@@ -129,22 +186,39 @@ export interface AttachCustomerData {
 // Payout Types
 export interface PayoutData {
   wallet_id: string;
-  customer_id?: string;
-  method: 'bank_transfer' | 'interac';
-  from_amount: number;
-  to_amount?: number;
-  phone_number?: string;
+  customer_id: string;
+  method: 'bank_transfer' | 'interac' | 'ach' | 'wire' | 'crypto';
   from_currency_id: string;
   to_currency_id: string;
-  account_number?: string;
-  bank_id?: string;
+  from_amount?: number;
+  to_amount?: number;
+  amount?: number;
+  country_id?: string;
+  type?: 'business' | 'individual';
+  phone_number?: string;
   email?: string;
   interac_first_name?: string;
   interac_last_name?: string;
+  bank_id?: string;
+  account_number?: string;
+  account_name?: string;
+  account_type?: 'savings' | 'checking';
+  bank_name?: string;
+  routing_number?: string;
+  swift_code?: string;
+  sort_code?: string;
+  iban?: string;
+  bic_code?: string;
   wallet_address?: string;
   wallet_network?: string;
   wallet_token?: string;
+  street?: string;
+  city?: string;
+  state?: string;
+  zip_code?: string;
+  country?: string;
   note?: string;
+  merchant_reference?: string;
 }
 
 export interface PayoutResponse {
@@ -156,16 +230,24 @@ export interface PayoutResponse {
 export interface Transaction {
   id: string;
   business_id: string;
-  business_customer_id: string;
-  business_wallet_id: string;
-  status: 'PENDING' | 'SUCCESSFUL' | 'FAILED' | 'CANCELLED';
-  reference: string;
+  business_customer_id: string | null;
+  business_wallet_id: string | null;
+  status: 'PENDING' | 'PROCESSING' | 'SUCCESSFUL' | 'FAILED' | 'EXPIRED' | 'REVERSED' | 'CANCELLED' | 'AWAITING_APPROVAL';
+  refund_status?: string | null;
+  type: string;
+  reference: string | null;
+  merchant_reference: string | null;
   currency: string;
   amount: number;
   amount_without_fee: number;
   fee: number;
   rate: number;
   date: string;
+  payee_collection_email?: string | null;
+  source_information?: {
+    collection_email: string | null;
+    collection_name: string | null;
+  };
   recipient?: {
     id: string;
     account_number: string;
@@ -174,15 +256,54 @@ export interface Transaction {
     currency: string;
     bank_name: string;
     bank_code: string;
+    status?: string;
+    routing_number?: string;
+    email?: string;
   };
 }
 
 export interface TransactionFilters {
+  start_date?: string;
+  end_date?: string;
+  wallet_id?: string;
+  customer_id?: string;
+  type?: 'SEND_MONEY' | 'FUND_WALLET' | 'SWAP';
+  status?: 'FAILED' | 'SUCCESSFUL' | 'EXPIRED';
+  merchant_reference?: string;
   page?: number;
-  limit?: number;
-  status?: string;
+}
+
+export interface SwapData {
+  from_business_wallet_id: string;
+  to_business_wallet_id: string;
+  amount: number;
+  amount_type?: 'from' | 'to';
+}
+
+export interface RefundData {
+  transaction_id: string;
+  reason?: string;
+  reference?: string;
+}
+
+export interface RateListFilters {
+  search_term?: string;
+}
+
+export interface BankListFilters {
   currency?: string;
-  type?: 'COLLECTION' | 'PAYOUT';
+  country?: string;
+  country_id?: number;
+}
+
+export interface PayeeVerificationData {
+  sort_code: string;
+  account_number: string;
+  account_name: string;
+}
+
+export interface IbanVerificationData {
+  iban: string;
 }
 
 // Wallet Types
@@ -292,14 +413,29 @@ export declare class CustomerService {
   addKYC(customerId: string, kycData: CustomerKYCData): Promise<BlaaizResponse<any>>;
   uploadFiles(customerId: string, fileData: CustomerFileData): Promise<BlaaizResponse<any>>;
   uploadFileComplete(customerId: string, fileOptions: FileUploadOptions): Promise<BlaaizResponse<any>>;
+  listBeneficiaries(customerId: string): Promise<BlaaizResponse<any>>;
+  getBeneficiary(customerId: string, beneficiaryId: string): Promise<BlaaizResponse<any>>;
+  submit(customerId: string): Promise<BlaaizResponse<{ data: Customer }>>;
+  upgradeKybScope(customerId: string, upgradeData: { owners: Array<Record<string, any>>; [key: string]: any }): Promise<BlaaizResponse<{ data: Customer }>>;
+  deleteOwner(customerId: string, ownerId: string): Promise<BlaaizResponse<any>>;
+  getOwnerFilePresignedUrl(customerId: string, ownerId: string, presignedData: { file_category: 'id_document_front' | 'id_document_back' }): Promise<BlaaizResponse<PreSignedUrlResponse>>;
+  uploadOwnerFiles(customerId: string, ownerId: string, fileData: { id_document_front: string; id_document_back?: string }): Promise<BlaaizResponse<any>>;
+  listDocuments(customerId: string): Promise<BlaaizResponse<{ data: CustomerDocument[] }>>;
+  getDocument(customerId: string, documentId: string): Promise<BlaaizResponse<{ data: CustomerDocument }>>;
+  getDocumentPresignedUrl(customerId: string): Promise<BlaaizResponse<PreSignedUrlResponse>>;
+  createDocument(customerId: string, documentData: CustomerDocumentData): Promise<BlaaizResponse<{ data: CustomerDocument }>>;
+  updateDocument(customerId: string, documentId: string, documentData: Partial<CustomerDocumentData>): Promise<BlaaizResponse<{ data: CustomerDocument }>>;
+  deleteDocument(customerId: string, documentId: string): Promise<BlaaizResponse<any>>;
 }
 
 export declare class CollectionService {
   constructor(client: any);
   initiate(collectionData: CollectionData): Promise<BlaaizResponse<CollectionResponse>>;
-  initiateCrypto(cryptoData: CryptoCollectionData): Promise<BlaaizResponse<CollectionResponse>>;
+  initiateCrypto(cryptoData: CryptoCollectionData): Promise<BlaaizResponse<any>>;
+  getCryptoNetworks(filters?: { transaction_type?: 'collection' | 'payout' }): Promise<BlaaizResponse<any>>;
   attachCustomer(attachData: AttachCustomerData): Promise<BlaaizResponse<any>>;
-  getCryptoNetworks(): Promise<BlaaizResponse<any>>;
+  initiateInteracMoneyRequest(interacData: InteracMoneyRequestData): Promise<BlaaizResponse<any>>;
+  acceptInteracMoneyRequest(interacData: AcceptInteracMoneyRequestData): Promise<BlaaizResponse<any>>;
 }
 
 export declare class PayoutService {
@@ -328,8 +464,26 @@ export declare class TransactionService {
 
 export declare class BankService {
   constructor(client: any);
-  list(): Promise<BlaaizResponse<Bank[]>>;
+  list(filters?: BankListFilters): Promise<BlaaizResponse<Bank[]>>;
   lookupAccount(lookupData: BankAccountLookupData): Promise<BlaaizResponse<BankAccountInfo>>;
+  verifyPayee(payeeData: PayeeVerificationData): Promise<BlaaizResponse<any>>;
+  verifyIban(ibanData: IbanVerificationData): Promise<BlaaizResponse<any>>;
+}
+
+export declare class RateService {
+  constructor(client: any);
+  list(filters?: RateListFilters): Promise<BlaaizResponse<any>>;
+}
+
+export declare class SwapService {
+  constructor(client: any);
+  initiate(swapData: SwapData): Promise<BlaaizResponse<any>>;
+}
+
+export declare class RefundService {
+  constructor(client: any);
+  initiate(refundData: RefundData): Promise<BlaaizResponse<any>>;
+  get(refundId: string): Promise<BlaaizResponse<any>>;
 }
 
 export declare class CurrencyService {
@@ -351,7 +505,7 @@ export declare class WebhookService {
   constructor(client: any);
   register(webhookData: WebhookData): Promise<BlaaizResponse<any>>;
   get(): Promise<BlaaizResponse<WebhookData>>;
-  update(webhookData: Partial<WebhookData>): Promise<BlaaizResponse<any>>;
+  update(webhookId: string, webhookData: Partial<WebhookData>): Promise<BlaaizResponse<any>>;
   replay(replayData: WebhookReplayData): Promise<BlaaizResponse<any>>;
   verifySignature(payload: string, signature: string, timestamp: string, secret: string): boolean;
   constructEvent(payload: string, signature: string, timestamp: string, secret: string): WebhookEvent;
@@ -370,6 +524,9 @@ export declare class Blaaiz {
   public fees: FeesService;
   public files: FileService;
   public webhooks: WebhookService;
+  public rates: RateService;
+  public swaps: SwapService;
+  public refunds: RefundService;
 
   constructor(apiKey: string, options?: BlaaizOptions);
   constructor(options: BlaaizOptions);
