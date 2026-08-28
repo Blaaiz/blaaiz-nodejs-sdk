@@ -432,7 +432,7 @@ class CustomerService {
         path: urlObj.pathname + urlObj.search,
         method: 'GET',
         headers: {
-          'User-Agent': 'Blaaiz-NodeJS-SDK/1.0.0'
+          'User-Agent': 'Blaaiz-NodeJS-SDK/1.4.0'
         }
       }
 

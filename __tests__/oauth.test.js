@@ -67,7 +67,7 @@ describe('OAuth client-credentials', () => {
     const client = new BlaaizAPIClient({ client_id: 'id', client_secret: 'secret', baseURL })
     await client.getOAuthToken()
 
-    expect(tokenHeaders['user-agent']).toBe('Blaaiz-NodeJS-SDK/1.0.0')
+    expect(tokenHeaders['user-agent']).toBe('Blaaiz-NodeJS-SDK/1.4.0')
     expect(tokenHeaders.accept).toBe('application/json')
     expect(tokenHeaders['content-type']).toBe('application/x-www-form-urlencoded')
     server.close()
