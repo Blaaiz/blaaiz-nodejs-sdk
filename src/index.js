@@ -132,7 +132,10 @@ module.exports = {
   CurrencyService,
   FeesService,
   FileService,
-  WebhookService
+  WebhookService,
+  RateService,
+  SwapService,
+  RefundService
 }
 
 module.exports.default = Blaaiz
