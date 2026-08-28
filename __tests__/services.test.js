@@ -1259,4 +1259,67 @@ describe('Service classes validate input and call makeRequest', () => {
     })
   })
 
+  describe('review-sweep coverage', () => {
+    test('customer.uploadFiles uses POST', async () => {
+      const service = new CustomerService(client)
+      const data = { id_file: 'file-1' }
+      await service.uploadFiles('cust-1', data)
+      expect(client.makeRequest).toHaveBeenCalledWith('POST', '/api/external/customer/cust-1/files', data)
+    })
+
+    test('collection.initiateCrypto validates required fields', async () => {
+      const service = new CollectionService(client)
+      await expect(service.initiateCrypto({ amount: 1, wallet_id: 'w', token: 'USDT' })).rejects.toThrow('network is required')
+    })
+
+    test('collection.initiateCrypto calls makeRequest', async () => {
+      const service = new CollectionService(client)
+      const data = { amount: 1, wallet_id: 'w', network: 'ETHEREUM_MAINNET', token: 'USDT' }
+      await service.initiateCrypto(data)
+      expect(client.makeRequest).toHaveBeenCalledWith('POST', '/api/external/collection/crypto', data)
+    })
+
+    test('collection.getCryptoNetworks hits the bare path and forwards filters', async () => {
+      const service = new CollectionService(client)
+      await service.getCryptoNetworks()
+      expect(client.makeRequest).toHaveBeenCalledWith('GET', '/api/external/collection/crypto/networks')
+      await service.getCryptoNetworks({ transaction_type: 'collection' })
+      expect(client.makeRequest).toHaveBeenCalledWith('GET', '/api/external/collection/crypto/networks?transaction_type=collection')
+    })
+
+    test('customer document read methods hit the right paths', async () => {
+      const service = new CustomerService(client)
+      await service.getDocument('cust-1', 'doc-1')
+      expect(client.makeRequest).toHaveBeenCalledWith('GET', '/api/external/customer/cust-1/document/doc-1')
+      await service.getDocumentPresignedUrl('cust-1')
+      expect(client.makeRequest).toHaveBeenCalledWith('POST', '/api/external/customer/cust-1/document/presigned-url')
+      const upd = { name: 'x' }
+      await service.updateDocument('cust-1', 'doc-1', upd)
+      expect(client.makeRequest).toHaveBeenCalledWith('PUT', '/api/external/customer/cust-1/document/doc-1', upd)
+    })
+
+    test('customer owner file methods hit the right paths', async () => {
+      const service = new CustomerService(client)
+      const p = { file_category: 'id_document_front' }
+      await service.getOwnerFilePresignedUrl('cust-1', 'own-1', p)
+      expect(client.makeRequest).toHaveBeenCalledWith('POST', '/api/external/customer/cust-1/owner/own-1/file/presigned-url', p)
+      const f = { id_document_front: 'file-1' }
+      await service.uploadOwnerFiles('cust-1', 'own-1', f)
+      expect(client.makeRequest).toHaveBeenCalledWith('POST', '/api/external/customer/cust-1/owner/own-1/files', f)
+    })
+
+    test('uploadFileComplete maps identity_back to id_file_back', async () => {
+      const service = new CustomerService(client)
+      client.makeRequest
+        .mockResolvedValueOnce({ data: { url: 'https://s3/x', file_id: 'file-9' } })
+        .mockResolvedValueOnce({ data: { success: true } })
+      service._uploadToS3 = jest.fn().mockResolvedValue({ status: 200 })
+      await service.uploadFileComplete('cust-1', {
+        file: Buffer.from('test'),
+        file_category: 'identity_back',
+        content_type: 'application/pdf'
+      })
+      expect(client.makeRequest).toHaveBeenCalledWith('POST', '/api/external/customer/cust-1/files', { id_file_back: 'file-9' })
+    })
+  })
 })
