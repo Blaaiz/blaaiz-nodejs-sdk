@@ -391,6 +391,7 @@ export interface PreSignedUrlResponse {
 export interface WebhookData {
   collection_url: string;
   payout_url: string;
+  kyc_url?: string | null;
 }
 
 export interface WebhookReplayData {
@@ -401,6 +402,69 @@ export interface WebhookEvent {
   [key: string]: any;
   verified: boolean;
   timestamp: string;
+}
+
+export type SignaRequirement = 'DOCUMENTS' | 'SELFIE' | 'FACE_MATCH' | 'PROOF_OF_ADDRESS';
+export type SignaDocumentType = 'PASSPORT' | 'ID_CARD' | 'DRIVERS' | 'RESIDENCE_PERMIT' | 'UTILITY_BILL' | 'BANK_STATEMENT' | 'SELFIE';
+export type SignaFulfilmentMode = 'HOSTED' | 'HEADLESS';
+
+export interface SignaApplicantData {
+  first_name?: string;
+  last_name?: string;
+  dob?: string;
+  country?: string;
+}
+
+export interface SignaSessionCreateData {
+  customer_reference: string;
+  idempotency_key: string;
+  requirements: SignaRequirement[];
+  fulfilment_mode?: SignaFulfilmentMode;
+  applicant?: SignaApplicantData;
+}
+
+export interface SignaSession {
+  id: string;
+  customer_reference?: string;
+  status: string;
+  requirements?: SignaRequirement[];
+  fulfilment_mode?: SignaFulfilmentMode;
+  verification_link?: string | null;
+  link_expires_at?: string | null;
+  [key: string]: any;
+}
+
+export interface SignaSessionListFilters {
+  limit?: number;
+  offset?: number;
+}
+
+export interface SignaSessionListData {
+  sessions: SignaSession[];
+  total?: number;
+  limit?: number;
+  offset?: number;
+  [key: string]: any;
+}
+
+export interface SignaDocumentUploadUrlData {
+  file_name: string;
+  id_doc_type: SignaDocumentType;
+}
+
+export interface SignaDocumentUploadUrl {
+  url: string;
+  file_name: string;
+  headers: { [key: string]: string };
+}
+
+export interface SignaSessionDocumentData {
+  filename: string;
+  content_type: 'image/jpeg' | 'image/png' | 'image/webp' | 'application/pdf';
+  id_doc_type: SignaDocumentType;
+  country: string;
+  file_name?: string | null;
+  content_base64?: string | null;
 }
 
 // Service Classes
@@ -511,6 +575,24 @@ export declare class WebhookService {
   constructEvent(payload: string, signature: string, timestamp: string, secret: string): WebhookEvent;
 }
 
+export declare class SignaService {
+  constructor(client: any);
+  createSession(sessionData: SignaSessionCreateData): Promise<BlaaizResponse<{ message: string; data: SignaSession }>>;
+  listSessions(filters?: SignaSessionListFilters): Promise<BlaaizResponse<{ message: string; data: SignaSessionListData }>>;
+  getSession(sessionId: string): Promise<BlaaizResponse<{ message: string; data: SignaSession }>>;
+  submitSession(sessionId: string): Promise<BlaaizResponse<{ message: string; data: SignaSession }>>;
+  cancelSession(sessionId: string): Promise<BlaaizResponse<{ message: string; data: SignaSession }>>;
+  createDocumentUploadUrl(sessionId: string, uploadData: SignaDocumentUploadUrlData): Promise<BlaaizResponse<{ message: string; data: SignaDocumentUploadUrl }>>;
+  uploadSessionDocument(sessionId: string, documentData: SignaSessionDocumentData): Promise<BlaaizResponse<{ message: string; data: SignaSession }>>;
+  issueVerificationLink(sessionId: string): Promise<BlaaizResponse<{ message: string; data: { verification_link: string; link_expires_at: string | null } }>>;
+  create(sessionData: SignaSessionCreateData): Promise<BlaaizResponse<{ message: string; data: SignaSession }>>;
+  list(filters?: SignaSessionListFilters): Promise<BlaaizResponse<{ message: string; data: SignaSessionListData }>>;
+  get(sessionId: string): Promise<BlaaizResponse<{ message: string; data: SignaSession }>>;
+  submit(sessionId: string): Promise<BlaaizResponse<{ message: string; data: SignaSession }>>;
+  cancel(sessionId: string): Promise<BlaaizResponse<{ message: string; data: SignaSession }>>;
+  uploadDocument(sessionId: string, documentData: SignaSessionDocumentData): Promise<BlaaizResponse<{ message: string; data: SignaSession }>>;
+}
+
 // Main SDK Class
 export declare class Blaaiz {
   public customers: CustomerService;
@@ -527,6 +609,7 @@ export declare class Blaaiz {
   public rates: RateService;
   public swaps: SwapService;
   public refunds: RefundService;
+  public signa: SignaService;
 
   constructor(apiKey: string, options?: BlaaizOptions);
   constructor(options: BlaaizOptions);

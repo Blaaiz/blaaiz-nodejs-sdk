@@ -253,10 +253,14 @@ describe('OAuth client-credentials', () => {
     expect(withCustom.oauthScope).toBe('wallet:read')
   })
 
-  test('exposes the 21 default scopes in order', () => {
-    expect(BlaaizAPIClient.ALL_SCOPES).toHaveLength(21)
+  test('exposes the default scopes including Signa scopes', () => {
+    expect(BlaaizAPIClient.ALL_SCOPES).toHaveLength(24)
     expect(BlaaizAPIClient.ALL_SCOPES[0]).toBe('wallet:read')
-    expect(BlaaizAPIClient.ALL_SCOPES[BlaaizAPIClient.ALL_SCOPES.length - 1]).toBe('rates:read')
+    expect(BlaaizAPIClient.ALL_SCOPES).toEqual(expect.arrayContaining([
+      'compliance-kyc:read',
+      'compliance-kyc:create',
+      'compliance-kyc:cancel'
+    ]))
   })
 
   test('throws OAUTH_PARSE_ERROR on a 2xx response without an access_token', async () => {

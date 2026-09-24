@@ -1,6 +1,12 @@
-const { Blaaiz, BlaaizError } = require('../src');
+const { Blaaiz, BlaaizError, SignaService } = require('../src');
 
 describe('Blaaiz high level methods', () => {
+  test('exposes the Signa resource client', () => {
+    const sdk = new Blaaiz('key');
+
+    expect(sdk.signa).toBeInstanceOf(SignaService);
+  });
+
   test('testConnection returns true on success', async () => {
     const sdk = new Blaaiz('key');
     sdk.currencies.list = jest.fn().mockResolvedValue({});
