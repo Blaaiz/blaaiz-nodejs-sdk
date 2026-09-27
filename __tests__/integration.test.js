@@ -612,6 +612,8 @@ describe('Blaaiz SDK Integration Tests', () => {
 
   describe('Signa KYC Sessions', () => {
     // Requires the API key to hold the compliance-kyc:read/create/cancel scopes.
+    // The API only accepts server-side uploads and submit on HEADLESS sessions,
+    // and only issues verification links for HOSTED ones, so each flow gets its own session.
     const pdfPath = path.join(__dirname, 'blank.pdf')
     const runId = `${Date.now()}-${crypto.randomBytes(4).toString('hex')}`
     let sessionId
@@ -620,7 +622,7 @@ describe('Blaaiz SDK Integration Tests', () => {
       customer_reference: `sdk-it-${runId}-${suffix}`,
       idempotency_key: `sdk-it-${runId}-${suffix}`,
       requirements: ['DOCUMENTS'],
-      fulfilment_mode: 'HOSTED',
+      fulfilment_mode: 'HEADLESS',
       applicant: { first_name: 'Ada', last_name: 'Lovelace', country: 'GBR' },
       ...overrides
     })
@@ -644,7 +646,7 @@ describe('Blaaiz SDK Integration Tests', () => {
       })
     }
 
-    test('should create a hosted session', async () => {
+    test('should create a headless session', async () => {
       if (skipIfNoApiKey()) return
 
       const response = await createSession('main')
@@ -660,7 +662,8 @@ describe('Blaaiz SDK Integration Tests', () => {
     }, 15000)
 
     test('should replay the same session for a repeated idempotency key', async () => {
-      if (skipIfNoApiKey() || !sessionId) return
+      if (skipIfNoApiKey()) return
+      expect(sessionId).toBeDefined()
 
       const response = await createSession('main')
 
@@ -668,7 +671,8 @@ describe('Blaaiz SDK Integration Tests', () => {
     }, 15000)
 
     test('should list and get the session', async () => {
-      if (skipIfNoApiKey() || !sessionId) return
+      if (skipIfNoApiKey()) return
+      expect(sessionId).toBeDefined()
 
       const list = await blaaiz.signa.listSessions({ limit: 50, offset: 0 })
       expect(Array.isArray(list.data.data.sessions)).toBe(true)
@@ -678,7 +682,8 @@ describe('Blaaiz SDK Integration Tests', () => {
     }, 15000)
 
     test('should upload a staged document through the upload URL', async () => {
-      if (skipIfNoApiKey() || !sessionId) return
+      if (skipIfNoApiKey()) return
+      expect(sessionId).toBeDefined()
 
       const upload = await blaaiz.signa.createDocumentUploadUrl(sessionId, {
         file_name: 'blank.pdf',
@@ -705,7 +710,8 @@ describe('Blaaiz SDK Integration Tests', () => {
     }, 30000)
 
     test('should upload an inline base64 document', async () => {
-      if (skipIfNoApiKey() || !sessionId) return
+      if (skipIfNoApiKey()) return
+      expect(sessionId).toBeDefined()
 
       const registered = await blaaiz.signa.uploadSessionDocument(sessionId, {
         filename: 'blank.pdf',
@@ -719,15 +725,20 @@ describe('Blaaiz SDK Integration Tests', () => {
     }, 30000)
 
     test('should issue a hosted verification link', async () => {
-      if (skipIfNoApiKey() || !sessionId) return
+      if (skipIfNoApiKey()) return
 
-      const link = await blaaiz.signa.issueVerificationLink(sessionId)
+      const hosted = await createSession('hosted', {
+        requirements: ['DOCUMENTS', 'SELFIE', 'FACE_MATCH'],
+        fulfilment_mode: 'HOSTED'
+      })
+      const link = await blaaiz.signa.issueVerificationLink(hosted.data.data.id)
 
       expect(link.data.data.verification_link).toMatch(/^https:\/\//)
     }, 15000)
 
     test('should submit the session', async () => {
-      if (skipIfNoApiKey() || !sessionId) return
+      if (skipIfNoApiKey()) return
+      expect(sessionId).toBeDefined()
 
       const submitted = await blaaiz.signa.submitSession(sessionId)
 
