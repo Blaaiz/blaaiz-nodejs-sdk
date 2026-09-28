@@ -47,6 +47,8 @@ npm run audit
 npm run build
 ```
 
+See [RELEASING.md](RELEASING.md) for how versions and releases work.
+
 ## Code Style
 
 - Follow the existing code style

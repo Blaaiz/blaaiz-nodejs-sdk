@@ -125,16 +125,49 @@ jobs:
         name: npm-package
         path: "*.tgz"
 
+  release-please:
+    runs-on: ubuntu-22.04
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    permissions:
+      contents: write
+      pull-requests: write
+    concurrency:
+      group: release-please
+      cancel-in-progress: false
+    outputs:
+      release_created: ${{ steps.release.outputs.release_created }}
+      tag_name: ${{ steps.release.outputs.tag_name }}
+    steps:
+      - uses: googleapis/release-please-action@v5
+        id: release
+        with:
+          config-file: release-please-config.json
+          manifest-file: .release-please-manifest.json
+
   publish:
     runs-on: ubuntu-22.04
-    needs: [test, security-audit, build]
-    if: github.event_name == 'release' && github.event.action == 'published'
+    needs: [test, security-audit, build, release-please]
+    # A release that release-please creates with GITHUB_TOKEN does not start a
+    # new workflow run, so publish runs in this run when release_created is true.
+    # !cancelled() keeps it alive on a manual release event, where release-please
+    # is skipped and would otherwise skip this job.
+    if: >-
+      !cancelled()
+      && needs.test.result == 'success'
+      && needs.security-audit.result == 'success'
+      && needs.build.result == 'success'
+      && (needs.release-please.outputs.release_created == 'true'
+          || (github.event_name == 'release' && github.event.action == 'published'))
     permissions:
       id-token: write
       contents: read
 
     steps:
     - uses: actions/checkout@v4
+      with:
+        # The tagged commit, not the pushed one: a later push's run can create
+        # the release for an earlier merge.
+        ref: ${{ needs.release-please.outputs.tag_name || github.ref }}
 
     - name: Setup Node.js
       uses: actions/setup-node@v4
@@ -153,9 +186,6 @@ jobs:
       run: npm run build
 
     - name: Publish to npm
-      env:
-        BLAAIZ_API_KEY: ${{ secrets.BLAAIZ_API_KEY }}
-        BLAAIZ_WEBHOOK_SECRET: ${{ secrets.BLAAIZ_WEBHOOK_SECRET }}
       # Node 22's bundled npm is 10.x, which predates OIDC trusted
       # publishing. Run the publish through `npx npm@11` so we are
       # guaranteed to be on a CLI that knows how to do the OIDC

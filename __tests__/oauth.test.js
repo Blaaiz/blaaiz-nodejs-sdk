@@ -1,6 +1,7 @@
 const http = require('http')
 const BlaaizAPIClient = require('../src/client')
 const BlaaizError = require('../src/error')
+const { version } = require('../package.json')
 
 function startServer (handler) {
   return new Promise((resolve) => {
@@ -67,7 +68,7 @@ describe('OAuth client-credentials', () => {
     const client = new BlaaizAPIClient({ client_id: 'id', client_secret: 'secret', baseURL })
     await client.getOAuthToken()
 
-    expect(tokenHeaders['user-agent']).toBe('Blaaiz-NodeJS-SDK/1.4.0')
+    expect(tokenHeaders['user-agent']).toBe(`Blaaiz-NodeJS-SDK/${version}`)
     expect(tokenHeaders.accept).toBe('application/json')
     expect(tokenHeaders['content-type']).toBe('application/x-www-form-urlencoded')
     server.close()
