@@ -8,7 +8,6 @@
 * **oauth:** request the compliance-kyc:pii:read scope by default ([69867d3](https://github.com/Blaaiz/blaaiz-nodejs-sdk/commit/69867d3abf4b842c7008014cb97ba82d9d904ec6))
 * **signa:** add Signa merchant KYC/KYB verification sessions ([7372741](https://github.com/Blaaiz/blaaiz-nodejs-sdk/commit/7372741a41b73ce7c05fce51814eba51c70ddd47))
 * **signa:** read captured applicant data and documents ([7372741](https://github.com/Blaaiz/blaaiz-nodejs-sdk/commit/7372741a41b73ce7c05fce51814eba51c70ddd47))
-* **signa:** read captured KYC data and automate releases ([1a15c1f](https://github.com/Blaaiz/blaaiz-nodejs-sdk/commit/1a15c1f878d59e4397f59fa084bc6fcd600f63e9))
 
 ## 1.4.0 - 2026-08-28
 
