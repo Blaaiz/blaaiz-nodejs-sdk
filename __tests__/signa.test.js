@@ -105,6 +105,35 @@ describe('SignaService', () => {
     )
   })
 
+  test('reads applicant data, lists documents, and downloads a document, encoding both ids', async () => {
+    await service.getSessionApplicantData('session/123')
+    await service.listSessionDocuments('session/123')
+    await service.getSessionDocument('session/123', 'doc/1')
+
+    expect(client.makeRequest.mock.calls).toEqual([
+      ['GET', '/api/external/compliance/kyc/sessions/session%2F123/applicant-data'],
+      ['GET', '/api/external/compliance/kyc/sessions/session%2F123/documents'],
+      ['GET', '/api/external/compliance/kyc/sessions/session%2F123/documents/doc%2F1']
+    ])
+  })
+
+  test('passes the PII read response through unchanged', async () => {
+    client.makeRequest.mockResolvedValueOnce({ data: { message: 'ok', data: null } })
+
+    const result = await service.getSessionApplicantData('session-123')
+
+    expect(result).toEqual({ data: { message: 'ok', data: null } })
+  })
+
+  test('validates session and document ids on the PII read methods and makes no HTTP call on failure', async () => {
+    await expect(service.getSessionApplicantData()).rejects.toThrow('Session ID is required')
+    await expect(service.listSessionDocuments()).rejects.toThrow('Session ID is required')
+    await expect(service.getSessionDocument()).rejects.toThrow('Session ID is required')
+    await expect(service.getSessionDocument('session-123')).rejects.toThrow('Document ID is required')
+
+    expect(client.makeRequest).not.toHaveBeenCalled()
+  })
+
   test('validates the create and document shapes', async () => {
     await expect(service.createSession({})).rejects.toThrow('customer_reference is required')
     await expect(service.createSession({
