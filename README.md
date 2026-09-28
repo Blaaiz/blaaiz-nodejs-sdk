@@ -77,6 +77,7 @@ When both OAuth credentials and an API key are configured, OAuth is used.
 - **Virtual Bank Accounts**: Create and manage virtual accounts for NGN collections
 - **Wallets**: Multi-currency wallet management
 - **Transactions**: Transaction history and status tracking
+- **Signa**: Merchant KYC/KYB verification sessions and document collection
 - **Webhooks**: Webhook configuration and management with signature verification
 - **Files**: Document upload with pre-signed URLs
 - **Fees**: Real-time fee calculations and breakdowns
@@ -280,6 +281,76 @@ const fileAssociation = await blaaiz.customers.uploadFiles('customer-id', {
 > - **Base64 string**: Plain base64 encoded data
 > - **Data URL**: Complete data URL with mime type (e.g., `data:image/jpeg;base64,/9j/4AAQ...`)
 > - **Public URL**: HTTP/HTTPS URL that will be downloaded automatically (supports redirects, content-type detection, and filename extraction)
+
+### Signa Merchant KYC/KYB Sessions
+
+Signa lets a business create and manage verification sessions for its own customers. The session requirements can include `DOCUMENTS`, `SELFIE`, `FACE_MATCH`, and `PROOF_OF_ADDRESS`.
+
+```javascript
+const session = await blaaiz.signa.createSession({
+  customer_reference: 'customer-123',
+  idempotency_key: 'signa-request-123',
+  requirements: ['DOCUMENTS', 'SELFIE'],
+  fulfilment_mode: 'HOSTED', // or HEADLESS
+  applicant: {
+    first_name: 'Ada',
+    last_name: 'Lovelace',
+    country: 'GBR'
+  }
+});
+
+const sessionId = session.data.data.id;
+console.log('Session:', session.data.data);
+
+const sessions = await blaaiz.signa.listSessions({ limit: 20, offset: 0 });
+const current = await blaaiz.signa.getSession(sessionId);
+
+await blaaiz.signa.submitSession(sessionId);
+await blaaiz.signa.cancelSession(sessionId);
+```
+
+#### Uploading Signa Documents
+
+For small documents, register inline base64 content directly. The API accepts one transport per request: either `content_base64` or a staged `file_name`.
+
+```javascript
+await blaaiz.signa.uploadSessionDocument(sessionId, {
+  filename: 'passport.jpg',
+  content_type: 'image/jpeg',
+  id_doc_type: 'PASSPORT',
+  country: 'GBR',
+  content_base64: '...base64 document bytes...'
+});
+```
+
+For normal-sized documents, use the staged upload flow. The upload URL response contains the exact headers that must be sent with the direct `PUT`; then register the returned `file_name` with Signa.
+
+```javascript
+const upload = await blaaiz.signa.createDocumentUploadUrl(sessionId, {
+  file_name: 'passport.jpg',
+  id_doc_type: 'PASSPORT'
+});
+
+// PUT the document bytes to upload.data.data.url with upload.data.data.headers.
+// The URL is short-lived and its headers are part of its signature.
+
+await blaaiz.signa.uploadSessionDocument(sessionId, {
+  filename: 'passport.jpg',
+  content_type: 'image/jpeg',
+  id_doc_type: 'PASSPORT',
+  country: 'GBR',
+  file_name: upload.data.data.file_name
+});
+```
+
+The seven session methods map directly to the `/api/external/compliance/kyc/sessions*` routes. Validation failures are returned as HTTP 422 and unknown sessions as HTTP 404 through the SDK's normal `BlaaizError`.
+
+Hosted sessions can issue or rotate a customer link when needed:
+
+```javascript
+const link = await blaaiz.signa.issueVerificationLink(sessionId);
+console.log(link.data.data.verification_link);
+```
 
 ### Collections
 
@@ -746,7 +817,8 @@ console.log('You send:', feeBreakdownReverse.data.you_send);
 ```javascript
 const webhook = await blaaiz.webhooks.register({
   collection_url: "https://your-domain.com/webhooks/collection",
-  payout_url: "https://your-domain.com/webhooks/payout"
+  payout_url: "https://your-domain.com/webhooks/payout",
+  kyc_url: "https://your-domain.com/webhooks/kyc" // Optional Signa callback
 });
 ```
 
@@ -755,6 +827,34 @@ const webhook = await blaaiz.webhooks.register({
 ```javascript
 const webhookConfig = await blaaiz.webhooks.get();
 console.log('Webhook URLs:', webhookConfig.data);
+```
+
+#### Verify Signa Webhooks
+
+Signa callbacks use the same `x-blaaiz-timestamp` and `x-blaaiz-signature` headers and HMAC-SHA256 scheme as collection and payout webhooks. Keep the request body raw, then reuse `constructEvent` (or `verifySignature`) from `WebhookService`.
+
+```javascript
+app.use('/webhooks', express.raw({ type: 'application/json' }));
+
+app.post('/webhooks/kyc', (req, res) => {
+  const payload = req.body.toString();
+  const signature = req.headers['x-blaaiz-signature'];
+  const timestamp = req.headers['x-blaaiz-timestamp'];
+
+  try {
+    const event = blaaiz.webhooks.constructEvent(
+      payload,
+      signature,
+      timestamp,
+      process.env.BLAAIZ_WEBHOOK_SECRET
+    );
+
+    console.log('Verified Signa event:', event);
+    res.status(200).json({ received: true });
+  } catch (error) {
+    res.status(400).json({ error: 'Invalid signature' });
+  }
+});
 ```
 
 #### Replay Webhook

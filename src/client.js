@@ -8,7 +8,8 @@ const ALL_SCOPES = [
   'beneficiary:read', 'virtual-account:read', 'virtual-account:create', 'virtual-account:close',
   'collection:create', 'collection:crypto:create', 'collection:interac:accept',
   'payout:create', 'swap:create', 'transaction:read', 'fees:read', 'file:upload',
-  'webhook:read', 'webhook:write', 'webhook:replay', 'rates:read'
+  'webhook:read', 'webhook:write', 'webhook:replay', 'rates:read',
+  'compliance-kyc:read', 'compliance-kyc:create', 'compliance-kyc:cancel'
 ]
 
 function isPresent (value) {
