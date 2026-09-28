@@ -9,7 +9,7 @@ const ALL_SCOPES = [
   'collection:create', 'collection:crypto:create', 'collection:interac:accept',
   'payout:create', 'swap:create', 'transaction:read', 'fees:read', 'file:upload',
   'webhook:read', 'webhook:write', 'webhook:replay', 'rates:read',
-  'compliance-kyc:read', 'compliance-kyc:create', 'compliance-kyc:cancel'
+  'compliance-kyc:read', 'compliance-kyc:create', 'compliance-kyc:cancel', 'compliance-kyc:pii:read'
 ]
 
 function isPresent (value) {
@@ -46,7 +46,7 @@ class BlaaizAPIClient {
     this.defaultHeaders = {
       Accept: 'application/json',
       'Content-Type': 'application/json',
-      'User-Agent': 'Blaaiz-NodeJS-SDK/1.4.0'
+      'User-Agent': 'Blaaiz-NodeJS-SDK/1.4.0' // x-release-please-version
     }
   }
 

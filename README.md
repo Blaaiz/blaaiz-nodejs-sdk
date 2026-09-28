@@ -286,12 +286,31 @@ const fileAssociation = await blaaiz.customers.uploadFiles('customer-id', {
 
 Signa lets a business create and manage verification sessions for its own customers. The session requirements can include `DOCUMENTS`, `SELFIE`, `FACE_MATCH`, and `PROOF_OF_ADDRESS`.
 
+Each Signa method maps to one `/api/external/compliance/kyc/sessions` route. Validation failures are returned as HTTP 422 and unknown sessions as HTTP 404 through the SDK's normal `BlaaizError`.
+
+#### Fulfilment mode rules
+
+- Document uploads, the upload URL, and `submitSession` work only on `HEADLESS` sessions.
+- `issueVerificationLink` works only on `HOSTED` sessions.
+
+The API currently accepts only these combinations of `requirements` and `fulfilment_mode`. It refuses any other combination when you create the session.
+
+| `requirements` | `fulfilment_mode` |
+| --- | --- |
+| `DOCUMENTS` | `HEADLESS` |
+| `DOCUMENTS`, `SELFIE`, `FACE_MATCH` | `HOSTED` |
+| `DOCUMENTS`, `SELFIE`, `FACE_MATCH`, `PROOF_OF_ADDRESS` | `HOSTED` |
+| `DOCUMENTS`, `PROOF_OF_ADDRESS` | `HOSTED` or `HEADLESS` |
+| `PROOF_OF_ADDRESS` | `HOSTED` or `HEADLESS` |
+
+If you do not send `fulfilment_mode`, the API uses the first mode in the row for your set. The settings of your business can limit the modes that you can use.
+
 ```javascript
 const session = await blaaiz.signa.createSession({
   customer_reference: 'customer-123',
   idempotency_key: 'signa-request-123',
-  requirements: ['DOCUMENTS', 'SELFIE'],
-  fulfilment_mode: 'HOSTED', // or HEADLESS
+  requirements: ['DOCUMENTS'],
+  fulfilment_mode: 'HEADLESS',
   applicant: {
     first_name: 'Ada',
     last_name: 'Lovelace',
@@ -304,14 +323,13 @@ console.log('Session:', session.data.data);
 
 const sessions = await blaaiz.signa.listSessions({ limit: 20, offset: 0 });
 const current = await blaaiz.signa.getSession(sessionId);
-
-await blaaiz.signa.submitSession(sessionId);
-await blaaiz.signa.cancelSession(sessionId);
 ```
+
+`listSessions` accepts `limit` (1 to 100; default 20) and `offset` (0 or more; default 0).
 
 #### Uploading Signa Documents
 
-For small documents, register inline base64 content directly. The API accepts one transport per request: either `content_base64` or a staged `file_name`.
+Use inline upload only for very small documents. The API can reject a request body larger than approximately 8 KB. Use the staged upload flow for every other document. Send exactly one of `content_base64` or a staged `file_name` per request.
 
 ```javascript
 await blaaiz.signa.uploadSessionDocument(sessionId, {
@@ -343,14 +361,55 @@ await blaaiz.signa.uploadSessionDocument(sessionId, {
 });
 ```
 
-The seven session methods map directly to the `/api/external/compliance/kyc/sessions*` routes. Validation failures are returned as HTTP 422 and unknown sessions as HTTP 404 through the SDK's normal `BlaaizError`.
-
-Hosted sessions can issue or rotate a customer link when needed:
+Submit the session once its documents are uploaded:
 
 ```javascript
-const link = await blaaiz.signa.issueVerificationLink(sessionId);
+await blaaiz.signa.submitSession(sessionId);
+```
+
+For a `HOSTED` session, issue or rotate the customer's verification link. This example uses a `HOSTED` set from the table above:
+
+```javascript
+const hostedSession = await blaaiz.signa.createSession({
+  customer_reference: 'customer-124',
+  idempotency_key: 'signa-request-124',
+  requirements: ['DOCUMENTS', 'SELFIE', 'FACE_MATCH'],
+  fulfilment_mode: 'HOSTED'
+});
+
+const link = await blaaiz.signa.issueVerificationLink(hostedSession.data.data.id);
 console.log(link.data.data.verification_link);
 ```
+
+To stop a session that you no longer need, cancel it:
+
+```javascript
+await blaaiz.signa.cancelSession(otherSessionId);
+```
+
+#### Read captured data
+
+`getSessionApplicantData`, `listSessionDocuments`, and `getSessionDocument` return the personal data that Signa captured during verification. They need the `compliance-kyc:pii:read` scope. Blaaiz grants this scope to a credential only on request. The SDK requests the scope by default, and the API ignores it for a credential that does not hold it. With OAuth, a token without the scope gets HTTP 403.
+
+All three methods return HTTP 409 until the session status is `APPROVED` or `REJECTED`.
+
+**Warning:** The response data is personal data. Do not log it and do not cache it. Every response carries `Cache-Control: no-store`.
+
+```javascript
+const applicantData = await blaaiz.signa.getSessionApplicantData(sessionId);
+const applicant = applicantData.data.data; // an object, or null when no applicant data was captured
+
+// Each item: { id, kind, document_type, document_side, content_type, available, unavailable_reason }
+const documents = await blaaiz.signa.listSessionDocuments(sessionId);
+const available = documents.data.data.filter((document) => document.available);
+
+const download = await blaaiz.signa.getSessionDocument(sessionId, available[0].id);
+const downloadUrl = download.data.data.url; // expires in 15 minutes
+```
+
+`getSessionDocument` returns HTTP 410 when Signa no longer retains the document. It is rate limited to 30 requests per minute and 600 requests per hour per business; the API returns HTTP 429 above those limits.
+
+Anyone who has the download link can download the document until the link expires. Do not log the link. Do not send it to a client that you do not control.
 
 ### Collections
 
@@ -821,6 +880,8 @@ const webhook = await blaaiz.webhooks.register({
   kyc_url: "https://your-domain.com/webhooks/kyc" // Optional Signa callback
 });
 ```
+
+On `webhooks.update`, `kyc_url` is also optional. If you do not send `kyc_url`, the API keeps the current value. To remove the value, send `kyc_url: null`.
 
 #### Get Webhook Configuration
 

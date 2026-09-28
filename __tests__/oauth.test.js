@@ -1,6 +1,7 @@
 const http = require('http')
 const BlaaizAPIClient = require('../src/client')
 const BlaaizError = require('../src/error')
+const { version } = require('../package.json')
 
 function startServer (handler) {
   return new Promise((resolve) => {
@@ -67,7 +68,7 @@ describe('OAuth client-credentials', () => {
     const client = new BlaaizAPIClient({ client_id: 'id', client_secret: 'secret', baseURL })
     await client.getOAuthToken()
 
-    expect(tokenHeaders['user-agent']).toBe('Blaaiz-NodeJS-SDK/1.4.0')
+    expect(tokenHeaders['user-agent']).toBe(`Blaaiz-NodeJS-SDK/${version}`)
     expect(tokenHeaders.accept).toBe('application/json')
     expect(tokenHeaders['content-type']).toBe('application/x-www-form-urlencoded')
     server.close()
@@ -254,13 +255,14 @@ describe('OAuth client-credentials', () => {
   })
 
   test('exposes the default scopes including Signa scopes', () => {
-    expect(BlaaizAPIClient.ALL_SCOPES).toHaveLength(24)
+    expect(BlaaizAPIClient.ALL_SCOPES).toHaveLength(25)
     expect(BlaaizAPIClient.ALL_SCOPES[0]).toBe('wallet:read')
-    expect(BlaaizAPIClient.ALL_SCOPES).toEqual(expect.arrayContaining([
+    expect(BlaaizAPIClient.ALL_SCOPES.slice(-4)).toEqual([
       'compliance-kyc:read',
       'compliance-kyc:create',
-      'compliance-kyc:cancel'
-    ]))
+      'compliance-kyc:cancel',
+      'compliance-kyc:pii:read'
+    ])
   })
 
   test('throws OAUTH_PARSE_ERROR on a 2xx response without an access_token', async () => {

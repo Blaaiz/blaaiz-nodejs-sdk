@@ -467,6 +467,54 @@ export interface SignaSessionDocumentData {
   content_base64?: string | null;
 }
 
+// PII reads: `compliance-kyc:pii:read` scope required; 409 until the session is
+// APPROVED or REJECTED. See README "Read captured data" for details.
+export interface SignaApplicantAddress {
+  line: string | null;
+  city: string | null;
+  state: string | null;
+  postal_code: string | null;
+}
+
+export interface SignaApplicantDocument {
+  type: string | null;
+  number: string | null;
+  issuing_country: string | null;
+  issue_date: string | null;
+  expiry_date: string | null;
+}
+
+export interface SignaSessionApplicantData {
+  session_id: string;
+  first_name: string | null;
+  middle_name: string | null;
+  last_name: string | null;
+  date_of_birth: string | null;
+  country: string | null;
+  nationality: string | null;
+  address: SignaApplicantAddress;
+  document: SignaApplicantDocument | null;
+  extracted_at: string;
+}
+
+export type SignaSessionDocumentKind = 'DOCUMENT' | 'SELFIE' | 'PROOF_OF_ADDRESS' | 'LIVENESS_REFERENCE' | 'OTHER';
+
+export interface SignaSessionDocument {
+  id: string;
+  kind: SignaSessionDocumentKind;
+  document_type: string | null;
+  document_side: string | null;
+  content_type: string | null;
+  available: boolean;
+  unavailable_reason: 'NOT_RETAINED' | 'RETRIEVAL_FAILED' | null;
+}
+
+export interface SignaSessionDocumentDownload {
+  url: string;
+  content_type: string | null;
+  expires_at: string;
+}
+
 // Service Classes
 export declare class CustomerService {
   constructor(client: any);
@@ -585,6 +633,9 @@ export declare class SignaService {
   createDocumentUploadUrl(sessionId: string, uploadData: SignaDocumentUploadUrlData): Promise<BlaaizResponse<{ message: string; data: SignaDocumentUploadUrl }>>;
   uploadSessionDocument(sessionId: string, documentData: SignaSessionDocumentData): Promise<BlaaizResponse<{ message: string; data: SignaSession }>>;
   issueVerificationLink(sessionId: string): Promise<BlaaizResponse<{ message: string; data: { verification_link: string; link_expires_at: string | null } }>>;
+  getSessionApplicantData(sessionId: string): Promise<BlaaizResponse<{ message: string; data: SignaSessionApplicantData | null }>>;
+  listSessionDocuments(sessionId: string): Promise<BlaaizResponse<{ message: string; data: SignaSessionDocument[] }>>;
+  getSessionDocument(sessionId: string, documentId: string): Promise<BlaaizResponse<{ message: string; data: SignaSessionDocumentDownload }>>;
   create(sessionData: SignaSessionCreateData): Promise<BlaaizResponse<{ message: string; data: SignaSession }>>;
   list(filters?: SignaSessionListFilters): Promise<BlaaizResponse<{ message: string; data: SignaSessionListData }>>;
   get(sessionId: string): Promise<BlaaizResponse<{ message: string; data: SignaSession }>>;

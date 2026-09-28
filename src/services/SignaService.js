@@ -93,6 +93,34 @@ class SignaService {
     )
   }
 
+  async getSessionApplicantData (sessionId) {
+    this._validateSessionId(sessionId)
+
+    return this.client.makeRequest(
+      'GET',
+      `${BASE_PATH}/${encodeURIComponent(sessionId)}/applicant-data`
+    )
+  }
+
+  async listSessionDocuments (sessionId) {
+    this._validateSessionId(sessionId)
+
+    return this.client.makeRequest(
+      'GET',
+      `${BASE_PATH}/${encodeURIComponent(sessionId)}/documents`
+    )
+  }
+
+  async getSessionDocument (sessionId, documentId) {
+    this._validateSessionId(sessionId)
+    this._validateDocumentId(documentId)
+
+    return this.client.makeRequest(
+      'GET',
+      `${BASE_PATH}/${encodeURIComponent(sessionId)}/documents/${encodeURIComponent(documentId)}`
+    )
+  }
+
   // Short aliases mirror the create/list/get style used by the other SDK resources.
   async create (sessionData) {
     return this.createSession(sessionData)
@@ -187,6 +215,12 @@ class SignaService {
   _validateSessionId (sessionId) {
     if (!sessionId) {
       throw new Error('Session ID is required')
+    }
+  }
+
+  _validateDocumentId (documentId) {
+    if (!documentId) {
+      throw new Error('Document ID is required')
     }
   }
 }
