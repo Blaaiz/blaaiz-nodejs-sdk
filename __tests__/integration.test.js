@@ -617,6 +617,18 @@ describe('Blaaiz SDK Integration Tests', () => {
     const pdfPath = path.join(__dirname, 'blank.pdf')
     const runId = `${Date.now()}-${crypto.randomBytes(4).toString('hex')}`
     let sessionId
+    let piiSessionId
+
+    // Only an OAuth token is scope-checked; skip rather than fail if one lacks compliance-kyc:pii:read.
+    const skipIfNoPiiScope = (error) => {
+      if (error && error.status === 403) {
+        console.warn('Skipped: the credential lacks the compliance-kyc:pii:read scope')
+        return true
+      }
+      return false
+    }
+
+    const errorFrom = (promise) => promise.then(() => null, (error) => error)
 
     const createSession = (suffix, overrides = {}) => blaaiz.signa.createSession({
       customer_reference: `sdk-it-${runId}-${suffix}`,
@@ -760,6 +772,56 @@ describe('Blaaiz SDK Integration Tests', () => {
 
       await expect(blaaiz.signa.getSession('00000000-0000-0000-0000-000000000000'))
         .rejects.toMatchObject({ status: 404 })
+    }, 15000)
+
+    // The PII reads return 409 until the session has a verdict, and a fresh
+    // session never has one, so they get their own session away from submit.
+    test('should create a separate headless session for the PII checks', async () => {
+      if (skipIfNoApiKey()) return
+
+      const response = await createSession('pii')
+      piiSessionId = response.data.data.id
+
+      expect(typeof piiSessionId).toBe('string')
+    }, 15000)
+
+    test('should refuse applicant data with 409 before a verdict', async () => {
+      if (skipIfNoApiKey()) return
+      expect(piiSessionId).toBeDefined()
+
+      const error = await errorFrom(blaaiz.signa.getSessionApplicantData(piiSessionId))
+      if (skipIfNoPiiScope(error)) return
+
+      expect(error).toMatchObject({ status: 409 })
+    }, 15000)
+
+    test('should refuse the document list with 409 before a verdict', async () => {
+      if (skipIfNoApiKey()) return
+      expect(piiSessionId).toBeDefined()
+
+      const error = await errorFrom(blaaiz.signa.listSessionDocuments(piiSessionId))
+      if (skipIfNoPiiScope(error)) return
+
+      expect(error).toMatchObject({ status: 409 })
+    }, 15000)
+
+    test('should refuse a document download with 409 before a verdict', async () => {
+      if (skipIfNoApiKey()) return
+      expect(piiSessionId).toBeDefined()
+
+      const error = await errorFrom(blaaiz.signa.getSessionDocument(piiSessionId, 'placeholder-document-id'))
+      if (skipIfNoPiiScope(error)) return
+
+      expect(error).toMatchObject({ status: 409 })
+    }, 15000)
+
+    test('should return 404 from getSessionDocument for an unknown session', async () => {
+      if (skipIfNoApiKey()) return
+
+      const error = await errorFrom(blaaiz.signa.getSessionDocument('00000000-0000-0000-0000-000000000000', 'any-document-id'))
+      if (skipIfNoPiiScope(error)) return
+
+      expect(error).toMatchObject({ status: 404 })
     }, 15000)
   })
 
