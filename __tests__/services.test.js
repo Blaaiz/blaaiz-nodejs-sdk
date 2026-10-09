@@ -1255,6 +1255,21 @@ describe('Service classes validate input and call makeRequest', () => {
       expect(client.makeRequest).toHaveBeenCalledWith('POST', '/api/external/customer/cust-1/upgrade-kyb-scope', data)
     })
 
+    test('linkKycSession sends the Signa session id', async () => {
+      const service = new CustomerService(client)
+      await service.linkKycSession('cust-1', 'session-1')
+      expect(client.makeRequest).toHaveBeenCalledWith('POST', '/api/external/customer/cust-1/kyc-session', {
+        signa_session_id: 'session-1'
+      })
+    })
+
+    test('linkKycSession validates both ids and makes no HTTP call on failure', async () => {
+      const service = new CustomerService(client)
+      await expect(service.linkKycSession()).rejects.toThrow('Customer ID is required')
+      await expect(service.linkKycSession('cust-1')).rejects.toThrow('signa_session_id is required')
+      expect(client.makeRequest).not.toHaveBeenCalled()
+    })
+
     test('deleteOwner calls makeRequest', async () => {
       const service = new CustomerService(client)
       await service.deleteOwner('cust-1', 'own-1')

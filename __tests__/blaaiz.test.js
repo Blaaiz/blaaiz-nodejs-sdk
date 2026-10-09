@@ -1,10 +1,11 @@
-const { Blaaiz, BlaaizError, SignaService } = require('../src');
+const { Blaaiz, BlaaizError, SignaService, SignaIdService } = require('../src');
 
 describe('Blaaiz high level methods', () => {
   test('exposes the Signa resource client', () => {
     const sdk = new Blaaiz('key');
 
     expect(sdk.signa).toBeInstanceOf(SignaService);
+    expect(sdk.signaId).toBeInstanceOf(SignaIdService);
   });
 
   test('testConnection returns true on success', async () => {

@@ -105,6 +105,18 @@ class CustomerService {
     return this.client.makeRequest('POST', `/api/external/customer/${customerId}/upgrade-kyb-scope`, upgradeData)
   }
 
+  async linkKycSession (customerId, signaSessionId) {
+    if (!customerId) {
+      throw new Error('Customer ID is required')
+    }
+    if (!signaSessionId) {
+      throw new Error('signa_session_id is required')
+    }
+    return this.client.makeRequest('POST', `/api/external/customer/${customerId}/kyc-session`, {
+      signa_session_id: signaSessionId
+    })
+  }
+
   async deleteOwner (customerId, ownerId) {
     if (!customerId) {
       throw new Error('Customer ID is required')

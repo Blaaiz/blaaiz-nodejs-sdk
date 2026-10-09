@@ -105,6 +105,30 @@ describe('SignaService', () => {
     )
   })
 
+  test('issues a web SDK access token for a hosted session', async () => {
+    await service.issueAccessToken('session/123')
+
+    expect(client.makeRequest).toHaveBeenCalledWith(
+      'POST',
+      '/api/external/compliance/kyc/sessions/session%2F123/access-token'
+    )
+    await expect(service.issueAccessToken()).rejects.toThrow('Session ID is required')
+    expect(client.makeRequest).toHaveBeenCalledTimes(1)
+  })
+
+  test('sends redirect_url on create', async () => {
+    const data = {
+      customer_reference: 'customer-123',
+      idempotency_key: 'request-123',
+      requirements: ['DOCUMENTS', 'SELFIE', 'FACE_MATCH'],
+      redirect_url: 'https://shop.example/kyc/done'
+    }
+
+    await service.createSession(data)
+
+    expect(client.makeRequest).toHaveBeenCalledWith('POST', '/api/external/compliance/kyc/sessions', data)
+  })
+
   test('reads applicant data, lists documents, and downloads a document, encoding both ids', async () => {
     await service.getSessionApplicantData('session/123')
     await service.listSessionDocuments('session/123')
