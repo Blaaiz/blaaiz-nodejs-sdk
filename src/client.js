@@ -46,7 +46,7 @@ class BlaaizAPIClient {
     this.defaultHeaders = {
       Accept: 'application/json',
       'Content-Type': 'application/json',
-      'User-Agent': 'Blaaiz-NodeJS-SDK/1.5.0' // x-release-please-version
+      'User-Agent': 'Blaaiz-NodeJS-SDK/1.5.1' // x-release-please-version
     }
   }
 
