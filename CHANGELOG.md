@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.6.0](https://github.com/Blaaiz/blaaiz-nodejs-sdk/compare/v1.5.1...v1.6.0) (2026-10-09)
+
+
+### Features
+
+* support mobile money payouts and list mobile money operators ([5ccee0d](https://github.com/Blaaiz/blaaiz-nodejs-sdk/commit/5ccee0dee14c54e52db48dbde4a68bcb5964d8ae))
+
 ## [1.5.1](https://github.com/Blaaiz/blaaiz-nodejs-sdk/compare/v1.5.0...v1.5.1) (2026-10-09)
 
 
