@@ -28,6 +28,8 @@ class PayoutService {
       this._validateAchWireFields(payoutData, method)
     } else if (method === 'crypto') {
       this._validateRequiredFields(payoutData, ['wallet_address', 'wallet_token', 'wallet_network'], 'crypto')
+    } else if (method === 'mobile_money') {
+      this._validateRequiredFields(payoutData, ['phone_number', 'mobile_money_operator_id', 'account_name'], 'mobile_money')
     }
 
     return this.client.makeRequest('POST', '/api/external/payout', payoutData)

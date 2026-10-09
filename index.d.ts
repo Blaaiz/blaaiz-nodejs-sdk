@@ -187,7 +187,7 @@ export interface AttachCustomerData {
 export interface PayoutData {
   wallet_id: string;
   customer_id: string;
-  method: 'bank_transfer' | 'interac' | 'ach' | 'wire' | 'crypto';
+  method: 'bank_transfer' | 'interac' | 'ach' | 'wire' | 'crypto' | 'mobile_money';
   from_currency_id: string;
   to_currency_id: string;
   from_amount?: number;
@@ -200,6 +200,7 @@ export interface PayoutData {
   interac_first_name?: string;
   interac_last_name?: string;
   bank_id?: string;
+  mobile_money_operator_id?: string | number;
   account_number?: string;
   account_name?: string;
   account_type?: 'savings' | 'checking';
@@ -365,6 +366,11 @@ export interface BankListFilters {
   country_id?: number;
 }
 
+export interface MomoOperatorListFilters {
+  currency_id?: string;
+  country_id?: number;
+}
+
 export interface PayeeVerificationData {
   sort_code: string;
   account_number: string;
@@ -417,12 +423,29 @@ export interface BankAccountInfo {
   bank_name: string;
 }
 
+// Mobile Money Operator Types
+export interface MomoOperator {
+  id: number;
+  name: string;
+  code: string;
+  country_id: number;
+}
+
 // Currency Types
+export interface CurrencyCountry {
+  id: number;
+  name: string;
+  short_name: string;
+  alt_short_name: string | null;
+}
+
 export interface Currency {
   id: string;
   name: string;
   code: string;
   status: string;
+  country_id?: number | null;
+  country?: CurrencyCountry | null;
 }
 
 // Fees Types
@@ -651,6 +674,11 @@ export declare class BankService {
   verifyIban(ibanData: IbanVerificationData): Promise<BlaaizResponse<any>>;
 }
 
+export declare class MomoOperatorService {
+  constructor(client: any);
+  list(filters?: MomoOperatorListFilters): Promise<BlaaizResponse<MomoOperator[]>>;
+}
+
 export declare class RateService {
   constructor(client: any);
   list(filters?: RateListFilters): Promise<BlaaizResponse<any>>;
@@ -722,6 +750,7 @@ export declare class Blaaiz {
   public virtualBankAccounts: VirtualBankAccountService;
   public transactions: TransactionService;
   public banks: BankService;
+  public momoOperators: MomoOperatorService;
   public currencies: CurrencyService;
   public fees: FeesService;
   public files: FileService;

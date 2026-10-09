@@ -70,7 +70,7 @@ When both OAuth credentials and an API key are configured, OAuth is used.
 
 - **Customer Management**: Create, update, and manage individual and business customers, including the business KYB flow (beneficial owners and documents)
 - **Collections**: Open Banking, Card, Crypto, and Interac money requests
-- **Payouts**: Bank transfers, Interac, ACH, Wire, and Crypto payouts across multiple currencies
+- **Payouts**: Bank transfers, Mobile Money, Interac, ACH, Wire, and Crypto payouts across multiple currencies
 - **Swaps**: Move funds between your business wallets
 - **Refunds**: Refund a collection back to its source
 - **Merchant reference**: Attach your own reference to payouts and collections, unique per business
@@ -81,7 +81,7 @@ When both OAuth credentials and an API key are configured, OAuth is used.
 - **Webhooks**: Webhook configuration and management with signature verification
 - **Files**: Document upload with pre-signed URLs
 - **Fees**: Real-time fee calculations and breakdowns
-- **Banks & Currencies**: Bank lists, account name lookup, GBP payee and EUR IBAN verification
+- **Banks & Currencies**: Bank lists, mobile money operator lists, account name lookup, GBP payee and EUR IBAN verification
 - **Rates**: List the exchange rates available to your business
 
 ## Supported Currencies & Methods
@@ -94,6 +94,7 @@ When both OAuth credentials and an API key are configured, OAuth is used.
 
 ### Payouts
 - **Bank Transfer**: NGN, GBP, EUR
+- **Mobile Money**: KES, UGX, TZS, XOF, GHS
 - **Interac**: CAD transactions
 - **ACH**: USD transactions
 - **Wire**: USD transactions
@@ -567,6 +568,28 @@ const eurPayout = await blaaiz.payouts.initiate({
 });
 ```
 
+#### Mobile Money Payout (KES, UGX, TZS, XOF, GHS)
+
+Use `mobile_money` when the destination currency supports it. Get the `mobile_money_operator_id` from `momoOperators.list()`.
+
+```javascript
+const momoPayout = await blaaiz.payouts.initiate({
+  wallet_id: "wallet-id",
+  customer_id: "customer-id",
+  method: "mobile_money",
+  from_amount: 100,
+  from_currency_id: "USD",
+  to_currency_id: "currency-id", // The currency ID, not the code
+  phone_number: "+254700000000", // International format, starts with +
+  mobile_money_operator_id: "operator-id", // Required
+  account_name: "Jane Doe" // Required
+});
+```
+
+Use the currency ID for `to_currency_id`. XOF exists for more than one country (Benin and Côte d'Ivoire), so the API rejects the code `XOF` alone unless you also send `country_id` to pick the country.
+
+In the payout response and in webhooks, the recipient shows the phone number in `account_number` and the operator name in `bank_name`. The payout response also shows the operator code in `bank_code`.
+
 #### Interac Payout (CAD)
 
 ```javascript
@@ -810,6 +833,20 @@ const banks = await blaaiz.banks.list();
 console.log('Available Banks:', banks.data);
 ```
 
+#### List Mobile Money Operators
+
+```javascript
+// Filter by the destination currency ID (preferred)
+const operators = await blaaiz.momoOperators.list({ currency_id: "currency-id" });
+
+// Or filter by country
+const countryOperators = await blaaiz.momoOperators.list({ country_id: 1 });
+
+console.log('Operators:', operators.data); // [{ id, name, code, country_id }]
+```
+
+Both filters are optional. Use the `id` of an operator as `mobile_money_operator_id` in a mobile money payout.
+
 #### Bank Account Lookup
 
 ```javascript
@@ -849,6 +886,8 @@ console.log('SEPA reachable:', result.data.sepa_reachable);
 const currencies = await blaaiz.currencies.list();
 console.log('Supported Currencies:', currencies.data);
 ```
+
+Each currency also includes `country_id` and a `country` object (`id`, `name`, `short_name`, `alt_short_name`). Use them to tell apart currencies that exist for more than one country, such as XOF.
 
 ### Fees
 

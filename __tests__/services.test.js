@@ -5,6 +5,7 @@ const WalletService = require('../src/services/WalletService')
 const VirtualBankAccountService = require('../src/services/VirtualBankAccountService')
 const TransactionService = require('../src/services/TransactionService')
 const BankService = require('../src/services/BankService')
+const MomoOperatorService = require('../src/services/MomoOperatorService')
 const CurrencyService = require('../src/services/CurrencyService')
 const FeesService = require('../src/services/FeesService')
 const FileService = require('../src/services/FileService')
@@ -676,6 +677,38 @@ describe('Service classes validate input and call makeRequest', () => {
       await expect(service.initiate(data)).rejects.toThrow('wallet_address is required for crypto method')
     })
 
+    test('mobile_money requires phone_number, mobile_money_operator_id, account_name', async () => {
+      const service = new PayoutService(client)
+      const data = {
+        wallet_id: 'w',
+        customer_id: 'c',
+        method: 'mobile_money',
+        from_amount: 1,
+        from_currency_id: 'USD',
+        to_currency_id: 'KES'
+      }
+      await expect(service.initiate(data)).rejects.toThrow('phone_number is required for mobile_money method')
+      await expect(service.initiate({ ...data, phone_number: '+254700000000' })).rejects.toThrow('mobile_money_operator_id is required for mobile_money method')
+      await expect(service.initiate({ ...data, phone_number: '+254700000000', mobile_money_operator_id: 'op' })).rejects.toThrow('account_name is required for mobile_money method')
+    })
+
+    test('mobile_money calls makeRequest with valid data', async () => {
+      const service = new PayoutService(client)
+      const data = {
+        wallet_id: 'w',
+        customer_id: 'c',
+        method: 'mobile_money',
+        from_amount: 1,
+        from_currency_id: 'USD',
+        to_currency_id: 'KES',
+        phone_number: '+254700000000',
+        mobile_money_operator_id: 'op',
+        account_name: 'Jane Doe'
+      }
+      await service.initiate(data)
+      expect(client.makeRequest).toHaveBeenCalledWith('POST', '/api/external/payout', data)
+    })
+
     test('initiate calls makeRequest with valid data', async () => {
       const service = new PayoutService(client)
       const data = {
@@ -798,6 +831,26 @@ describe('Service classes validate input and call makeRequest', () => {
     test('lookupAccount validates fields', async () => {
       const service = new BankService(client)
       await expect(service.lookupAccount({})).rejects.toThrow('account_number is required')
+    })
+  })
+
+  describe('MomoOperatorService', () => {
+    test('list calls makeRequest without filters', async () => {
+      const service = new MomoOperatorService(client)
+      await service.list()
+      expect(client.makeRequest).toHaveBeenCalledWith('GET', '/api/external/momo-operator')
+    })
+
+    test('list forwards filters as query parameters', async () => {
+      const service = new MomoOperatorService(client)
+      await service.list({ currency_id: 'cur-1', country_id: 5 })
+      expect(client.makeRequest).toHaveBeenCalledWith('GET', '/api/external/momo-operator?currency_id=cur-1&country_id=5')
+    })
+
+    test('list skips empty filters', async () => {
+      const service = new MomoOperatorService(client)
+      await service.list({ currency_id: undefined, country_id: null })
+      expect(client.makeRequest).toHaveBeenCalledWith('GET', '/api/external/momo-operator')
     })
   })
 
