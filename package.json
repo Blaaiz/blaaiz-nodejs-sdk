@@ -51,14 +51,19 @@
   },
   "devDependencies": {
     "@types/node": "^18.19.119",
+    "audit-ci": "^7.0.1",
     "eslint": "^8.40.0",
     "eslint-config-standard": "^17.0.0",
     "eslint-plugin-import": "^2.27.5",
     "eslint-plugin-n": "^15.7.0",
     "eslint-plugin-promise": "^6.1.1",
-    "jest": "^29.5.0",
-    "jsdoc": "^4.0.2",
-    "audit-ci": "^7.0.1"
+    "jest": "^30.5.2",
+    "jsdoc": "^4.0.2"
+  },
+  "overrides": {
+    "@istanbuljs/load-nyc-config": {
+      "js-yaml": "^4.3.2"
+    }
   },
   "files": [
     "index.js",
