@@ -227,39 +227,108 @@ export interface PayoutResponse {
 }
 
 // Transaction Types
+export interface TransactionSourceInformation {
+  collection_email: string | null;
+  collection_name: string | null;
+  account_name: string | null;
+  account_number: string | null;
+  bank_name: string | null;
+  sort_code: string | null;
+  bank_swift_code: string | null;
+  description: string | null;
+  narration: string | null;
+}
+
+export interface TransactionSwapDetails {
+  from_business_wallet_id: string | null;
+  to_business_wallet_id: string | null;
+  to_business_crypto_wallet_id: string | null;
+  from_currency: string | null;
+  from_amount: number | null;
+  from_amount_without_fee: number | null;
+  to_currency: string | null;
+  to_amount: number | null;
+  amount_type: string | null;
+  exchange_rate: number | null;
+}
+
+export interface TransactionRecipient {
+  id: string;
+  account_number: string | null;
+  account_name: string | null;
+  amount: number | null;
+  currency: string | null;
+  bank_name: string | null;
+  bank_code: string | null;
+  status: string | null;
+  routing_number: string | null;
+  email: string | null;
+}
+
+export interface TransactionRefund {
+  id: string;
+  status: 'PENDING' | 'PROCESSING' | 'SUCCESSFUL' | 'FAILED';
+  type: string;
+  amount: number | null;
+  currency: string;
+  transaction_id: string;
+  reference: string | null;
+  business_customer_id: string | null;
+  refund_reference: string | null;
+  failure_reason: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface Transaction {
   id: string;
   business_id: string;
   business_customer_id: string | null;
   business_wallet_id: string | null;
   status: 'PENDING' | 'PROCESSING' | 'SUCCESSFUL' | 'FAILED' | 'EXPIRED' | 'REVERSED' | 'CANCELLED' | 'AWAITING_APPROVAL';
-  refund_status?: string | null;
-  type: string;
+  refund_status: string | null;
+  type: 'payout' | 'collection' | 'swap' | (string & {});
   reference: string | null;
+  external_reference: string | null;
   merchant_reference: string | null;
   currency: string;
   amount: number;
   amount_without_fee: number;
   fee: number;
-  rate: number;
+  rate: number | null;
   date: string;
-  payee_collection_email?: string | null;
-  source_information?: {
-    collection_email: string | null;
-    collection_name: string | null;
+  payee_collection_email: string | null;
+  source_information: TransactionSourceInformation;
+  swap_details: TransactionSwapDetails | null;
+  recipient?: TransactionRecipient | null;
+  /** Only on `transactions.get()`, and only when the credential can read refunds. */
+  refund?: TransactionRefund | null;
+}
+
+export interface TransactionListResponse {
+  message: string;
+  data: Transaction[];
+  links: {
+    first: string | null;
+    last: string | null;
+    prev: string | null;
+    next: string | null;
   };
-  recipient?: {
-    id: string;
-    account_number: string;
-    account_name: string;
-    amount: number;
-    currency: string;
-    bank_name: string;
-    bank_code: string;
-    status?: string;
-    routing_number?: string;
-    email?: string;
+  meta: {
+    current_page: number;
+    from: number | null;
+    last_page: number;
+    path: string;
+    per_page: number;
+    to: number | null;
+    total: number;
+    [key: string]: any;
   };
+}
+
+export interface TransactionResponse {
+  message: string;
+  data: Transaction;
 }
 
 export interface TransactionFilters {
@@ -570,8 +639,8 @@ export declare class VirtualBankAccountService {
 
 export declare class TransactionService {
   constructor(client: any);
-  list(filters?: TransactionFilters): Promise<BlaaizResponse<Transaction[]>>;
-  get(transactionId: string): Promise<BlaaizResponse<Transaction>>;
+  list(filters?: TransactionFilters): Promise<BlaaizResponse<TransactionListResponse>>;
+  get(transactionId: string): Promise<BlaaizResponse<TransactionResponse>>;
 }
 
 export declare class BankService {
