@@ -794,6 +794,13 @@ const transaction = await blaaiz.transactions.get("transaction-id");
 console.log('Transaction:', transaction.data);
 ```
 
+The response body contains the transaction in `data`. For a collection, `source_information` shows who sent the funds. A key is `null` when the collection method does not supply it.
+
+```javascript
+const { source_information: payer } = transaction.data.data;
+console.log('Payer:', payer.account_name, payer.account_number, payer.bank_name);
+```
+
 ### Banks & Currencies
 
 #### List Banks
