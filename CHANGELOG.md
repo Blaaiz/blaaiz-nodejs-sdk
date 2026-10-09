@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.5.1](https://github.com/Blaaiz/blaaiz-nodejs-sdk/compare/v1.5.0...v1.5.1) (2026-10-09)
+
+
+### Bug Fixes
+
+* **types:** match the transaction types to the API response ([d1648c5](https://github.com/Blaaiz/blaaiz-nodejs-sdk/commit/d1648c5791b0d651457a153a7ad126b65bff3744))
+
 ## [1.5.0](https://github.com/Blaaiz/blaaiz-nodejs-sdk/compare/v1.4.0...v1.5.0) (2026-09-28)
 
 
