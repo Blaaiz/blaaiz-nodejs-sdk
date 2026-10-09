@@ -57,6 +57,12 @@ describe('SignaIdService', () => {
     ])
   })
 
+  test('encodes the wallet address', async () => {
+    await service.getWalletStatus('0xabc/def')
+
+    expect(client.makeRequest).toHaveBeenCalledWith('GET', '/api/v1/signa-id/public/wallets/0xabc%2Fdef/status')
+  })
+
   test('validates the release request shape and makes no HTTP call on failure', async () => {
     await expect(service.createReleaseRequest()).rejects.toThrow('Release request data is required')
     await expect(service.createReleaseRequest({ ...releaseRequest, origin: '' })).rejects.toThrow('origin is required')

@@ -113,6 +113,7 @@ describe('SignaService', () => {
       '/api/external/compliance/kyc/sessions/session%2F123/access-token'
     )
     await expect(service.issueAccessToken()).rejects.toThrow('Session ID is required')
+    expect(client.makeRequest).toHaveBeenCalledTimes(1)
   })
 
   test('sends redirect_url on create', async () => {
