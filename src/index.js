@@ -8,6 +8,7 @@ const WalletService = require('./services/WalletService')
 const VirtualBankAccountService = require('./services/VirtualBankAccountService')
 const TransactionService = require('./services/TransactionService')
 const BankService = require('./services/BankService')
+const MomoOperatorService = require('./services/MomoOperatorService')
 const CurrencyService = require('./services/CurrencyService')
 const FeesService = require('./services/FeesService')
 const FileService = require('./services/FileService')
@@ -28,6 +29,7 @@ class Blaaiz {
     this.virtualBankAccounts = new VirtualBankAccountService(this.client)
     this.transactions = new TransactionService(this.client)
     this.banks = new BankService(this.client)
+    this.momoOperators = new MomoOperatorService(this.client)
     this.currencies = new CurrencyService(this.client)
     this.fees = new FeesService(this.client)
     this.files = new FileService(this.client)
@@ -131,6 +133,7 @@ module.exports = {
   VirtualBankAccountService,
   TransactionService,
   BankService,
+  MomoOperatorService,
   CurrencyService,
   FeesService,
   FileService,
