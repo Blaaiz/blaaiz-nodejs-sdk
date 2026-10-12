@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.7.0](https://github.com/Blaaiz/blaaiz-nodejs-sdk/compare/v1.6.0...v1.7.0) (2026-10-12)
+
+
+### Features
+
+* **signa:** add Signa ID release, web SDK access tokens and customer linking ([8d142f2](https://github.com/Blaaiz/blaaiz-nodejs-sdk/commit/8d142f27cbc6f7cdbf03befe07f83528a304c5c9))
+
 ## [1.6.0](https://github.com/Blaaiz/blaaiz-nodejs-sdk/compare/v1.5.1...v1.6.0) (2026-10-09)
 
 
