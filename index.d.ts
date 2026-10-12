@@ -513,6 +513,7 @@ export interface SignaSessionCreateData {
   requirements: SignaRequirement[];
   fulfilment_mode?: SignaFulfilmentMode;
   applicant?: SignaApplicantData;
+  redirect_url?: string;
 }
 
 export interface SignaSession {
@@ -607,6 +608,86 @@ export interface SignaSessionDocumentDownload {
   expires_at: string;
 }
 
+export interface SignaAccessToken {
+  access_token: string;
+  expires_at: string;
+}
+
+// Signa ID release: `signa-id:release` scope required. The SDK does not request
+// it by default; see README "Signa ID Release" for details.
+export type SignaReleaseScope = 'identity' | 'id_document' | 'address' | 'document_images';
+export type SignaReleaseStatus = 'PENDING' | 'RELEASED' | 'EXCHANGED' | 'DECLINED' | 'EXPIRED';
+export type SignaReleaseAccessStatus = 'ACTIVE' | 'REVOKED' | 'EXPIRED' | 'UNAVAILABLE';
+
+export interface SignaReleaseRequestData {
+  idempotency_key: string;
+  purpose: string;
+  scopes: SignaReleaseScope[];
+  origin: string;
+  reference?: string;
+}
+
+export interface SignaRelease {
+  id: string;
+  status: SignaReleaseStatus;
+  purpose: string;
+  scopes: SignaReleaseScope[];
+  origin: string;
+  reference: string;
+  expires_at: string;
+  released_at: string | null;
+  exchanged_at: string | null;
+  access: { status: SignaReleaseAccessStatus; expires_at: string | null } | null;
+  created_at: string;
+}
+
+export interface SignaCreatedRelease extends SignaRelease {
+  request_token: string | null;
+  release_url: string | null;
+}
+
+export interface SignaReleasedDocumentImage {
+  id: string;
+  document_type: string | null;
+  document_side: string | null;
+  content_type: string | null;
+  available: boolean;
+  unavailable_reason: 'NOT_RETAINED' | 'RETRIEVAL_FAILED' | null;
+}
+
+export interface SignaReleasedData {
+  verification: {
+    status: 'VERIFIED';
+    verified_at: string | null;
+    released_at: string | null;
+    liveness: 'PASSED';
+    face_match: 'PASSED';
+  };
+  identity?: {
+    first_name: string | null;
+    middle_name: string | null;
+    last_name: string | null;
+    date_of_birth: string | null;
+    nationality: string | null;
+  } | null;
+  id_document?: SignaApplicantDocument | null;
+  address?: (SignaApplicantAddress & { country: string | null }) | null;
+  document_images?: SignaReleasedDocumentImage[];
+}
+
+export interface SignaReleaseRead {
+  release: SignaRelease;
+  data: SignaReleasedData | null;
+}
+
+export interface SignaWalletStatus {
+  verified: boolean;
+  level: 1 | 2 | null;
+  country: string | null;
+  expires_at: string | null;
+  attestations: Array<{ chain_id: number; uid: string; explorer_url: string | null }>;
+}
+
 // Service Classes
 export declare class CustomerService {
   constructor(client: any);
@@ -621,6 +702,7 @@ export declare class CustomerService {
   getBeneficiary(customerId: string, beneficiaryId: string): Promise<BlaaizResponse<any>>;
   submit(customerId: string): Promise<BlaaizResponse<{ data: Customer }>>;
   upgradeKybScope(customerId: string, upgradeData: { owners: Array<Record<string, any>>; [key: string]: any }): Promise<BlaaizResponse<{ data: Customer }>>;
+  linkKycSession(customerId: string, signaSessionId: string): Promise<BlaaizResponse<{ message: string; data: Customer }>>;
   deleteOwner(customerId: string, ownerId: string): Promise<BlaaizResponse<any>>;
   getOwnerFilePresignedUrl(customerId: string, ownerId: string, presignedData: { file_category: 'id_document_front' | 'id_document_back' }): Promise<BlaaizResponse<PreSignedUrlResponse>>;
   uploadOwnerFiles(customerId: string, ownerId: string, fileData: { id_document_front: string; id_document_back?: string }): Promise<BlaaizResponse<any>>;
@@ -730,6 +812,7 @@ export declare class SignaService {
   createDocumentUploadUrl(sessionId: string, uploadData: SignaDocumentUploadUrlData): Promise<BlaaizResponse<{ message: string; data: SignaDocumentUploadUrl }>>;
   uploadSessionDocument(sessionId: string, documentData: SignaSessionDocumentData): Promise<BlaaizResponse<{ message: string; data: SignaSession }>>;
   issueVerificationLink(sessionId: string): Promise<BlaaizResponse<{ message: string; data: { verification_link: string; link_expires_at: string | null } }>>;
+  issueAccessToken(sessionId: string): Promise<BlaaizResponse<{ message: string; data: SignaAccessToken }>>;
   getSessionApplicantData(sessionId: string): Promise<BlaaizResponse<{ message: string; data: SignaSessionApplicantData | null }>>;
   listSessionDocuments(sessionId: string): Promise<BlaaizResponse<{ message: string; data: SignaSessionDocument[] }>>;
   getSessionDocument(sessionId: string, documentId: string): Promise<BlaaizResponse<{ message: string; data: SignaSessionDocumentDownload }>>;
@@ -739,6 +822,15 @@ export declare class SignaService {
   submit(sessionId: string): Promise<BlaaizResponse<{ message: string; data: SignaSession }>>;
   cancel(sessionId: string): Promise<BlaaizResponse<{ message: string; data: SignaSession }>>;
   uploadDocument(sessionId: string, documentData: SignaSessionDocumentData): Promise<BlaaizResponse<{ message: string; data: SignaSession }>>;
+}
+
+export declare class SignaIdService {
+  constructor(client: any);
+  createReleaseRequest(requestData: SignaReleaseRequestData): Promise<BlaaizResponse<{ message: string; data: SignaCreatedRelease }>>;
+  exchangeReleaseCode(code: string): Promise<BlaaizResponse<{ message: string; data: SignaReleaseRead }>>;
+  getRelease(releaseId: string): Promise<BlaaizResponse<{ message: string; data: SignaReleaseRead }>>;
+  getReleaseDocument(releaseId: string, documentId: string): Promise<BlaaizResponse<{ message: string; data: SignaSessionDocumentDownload }>>;
+  getWalletStatus(address: string, filters?: { chain_id?: number }): Promise<BlaaizResponse<SignaWalletStatus>>;
 }
 
 // Main SDK Class
@@ -759,6 +851,7 @@ export declare class Blaaiz {
   public swaps: SwapService;
   public refunds: RefundService;
   public signa: SignaService;
+  public signaId: SignaIdService;
 
   constructor(apiKey: string, options?: BlaaizOptions);
   constructor(options: BlaaizOptions);

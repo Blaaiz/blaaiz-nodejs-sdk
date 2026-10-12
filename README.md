@@ -54,6 +54,8 @@ const blaaiz = new Blaaiz({
 
 When `oauth_scope` is omitted the SDK requests the full set of supported scopes.
 
+The default set does not include `signa-id:release`. To call `blaaiz.signaId` release methods, send `oauth_scope` with that scope. See [Signa ID Release](#signa-id-release).
+
 ### API key (legacy)
 
 API keys are still supported for existing integrations.
@@ -176,6 +178,19 @@ console.log('Beneficiaries:', beneficiaries.data);
 const beneficiary = await blaaiz.customers.getBeneficiary('customer-id', 'beneficiary-id');
 console.log('Beneficiary:', beneficiary.data);
 ```
+
+### Verify a Customer with a Signa Session
+
+If the person already passed a Signa session of your business, link that session to an individual customer. The person does not send their documents again.
+
+```javascript
+const result = await blaaiz.customers.linkKycSession('customer-id', 'signa-session-id');
+console.log(result.data.data.verification_status); // VERIFIED
+```
+
+The call needs the `customer:write` and `compliance-kyc:pii:read` scopes. The session must be `APPROVED`, include `DOCUMENTS`, and be approved in the last 365 days. The customer details must agree with the verified person. If a condition fails, the API returns HTTP 400, 409, or 422, and the message names the condition.
+
+On success, the customer becomes `VERIFIED` and a `customer.status_changed` webhook fires. Blaaiz then copies the verified name, date of birth, document details, and images to the customer.
 
 ### Business Customer KYB
 
@@ -328,6 +343,8 @@ const current = await blaaiz.signa.getSession(sessionId);
 
 `listSessions` accepts `limit` (1 to 100; default 20) and `offset` (0 or more; default 0).
 
+`createSession` also accepts an optional `redirect_url`, an https URL on your site. When the person finishes on a Blaaiz-hosted verification page, the page sends the person to this URL with `session_id` added. The URL never carries the result.
+
 #### Uploading Signa Documents
 
 Use inline upload only for very small documents. The API can reject a request body larger than approximately 8 KB. Use the staged upload flow for every other document. Send exactly one of `content_base64` or a staged `file_name` per request.
@@ -382,6 +399,15 @@ const link = await blaaiz.signa.issueVerificationLink(hostedSession.data.data.id
 console.log(link.data.data.verification_link);
 ```
 
+To open a `HOSTED` session in a popup on your own page with the Signa web SDK, issue an access token from your server. Send `access_token` to your page and call `signa.startSession({ accessToken })`.
+
+```javascript
+const token = await blaaiz.signa.issueAccessToken(hostedSession.data.data.id);
+const { access_token, expires_at } = token.data.data;
+```
+
+The token is valid for 30 minutes. While more than 10 minutes remain, a new call returns the same token. With 10 minutes or less, the call returns a new token, and the previous token and verification link stop working. The token is a bearer credential: do not put it in a URL and do not log it.
+
 To stop a session that you no longer need, cancel it:
 
 ```javascript
@@ -411,6 +437,57 @@ const downloadUrl = download.data.data.url; // expires in 15 minutes
 `getSessionDocument` returns HTTP 410 when Signa no longer retains the document. It is rate limited to 30 requests per minute and 600 requests per hour per business; the API returns HTTP 429 above those limits.
 
 Anyone who has the download link can download the document until the link expires. Do not log the link. Do not send it to a client that you do not control.
+
+### Signa ID Release
+
+With Signa ID, a person who is already verified releases their data to your business in a popup. Your server creates a release request, your page opens the popup, and your server exchanges the code for the data.
+
+The release methods need an OAuth access token with the `signa-id:release` scope. API keys cannot call them. No scope bundle contains this scope, so select it by name when you create the credential. Signa ID release must also be enabled for your business.
+
+**Note:** The SDK does not request `signa-id:release` by default. Send `oauth_scope` with that scope, preferably on a dedicated credential.
+
+```javascript
+const signaIdClient = new Blaaiz({
+  client_id: process.env.BLAAIZ_SIGNA_ID_CLIENT_ID,
+  client_secret: process.env.BLAAIZ_SIGNA_ID_CLIENT_SECRET,
+  oauth_scope: 'signa-id:release'
+});
+
+// 1. Create the request. Send request_token to your page.
+const created = await signaIdClient.signaId.createReleaseRequest({
+  idempotency_key: 'release-user-10482',
+  purpose: 'Open your trading account',
+  scopes: ['identity', 'id_document', 'document_images'], // also: 'address'
+  origin: 'https://yourapp.com', // the exact window.location.origin of your page
+  reference: 'user_10482' // optional
+});
+const { id: releaseId, request_token } = created.data.data;
+
+// 2. In your page: const { code } = await signa.requestData({ requestToken })
+
+// 3. Exchange the code from your server. The code works one time, for 5 minutes.
+const exchanged = await signaIdClient.signaId.exchangeReleaseCode(code);
+const { release, data } = exchanged.data.data; // check that release.id === releaseId
+
+// Read the release again during the 30-day access window
+const current = await signaIdClient.signaId.getRelease(releaseId);
+
+// Download one document image. The URL expires in 15 minutes.
+const image = await signaIdClient.signaId.getReleaseDocument(releaseId, data.document_images[0].id);
+```
+
+The release request expires 30 minutes after the create. `getRelease` returns `data` as `null` before the exchange and when `release.access.status` is not `ACTIVE`. Each create and exchange endpoint allows 30 requests each minute for each business.
+
+**Warning:** The released data is personal data. Do not log it and do not cache it.
+
+To check if a wallet belongs to a verified Signa ID, call `getWalletStatus`. The endpoint needs no authentication and returns no personal data.
+
+```javascript
+const status = await blaaiz.signaId.getWalletStatus('0x1234...abcd', { chain_id: 8453 });
+console.log(status.data.verified, status.data.level);
+```
+
+The wallet status response is at the root of the body, with no `message` and no `data` wrapper.
 
 ### Collections
 
@@ -937,6 +1014,8 @@ console.log('Webhook URLs:', webhookConfig.data);
 ```
 
 #### Verify Signa Webhooks
+
+Signa and Signa ID callbacks go to your `kyc_url`. The events are `merchant.kyc.session.completed`, `merchant.kyc.session.expired`, and `signa_id.grant.revoked`. After `signa_id.grant.revoked`, the release methods return no data for `data.release_id`.
 
 Signa callbacks use the same `x-blaaiz-timestamp` and `x-blaaiz-signature` headers and HMAC-SHA256 scheme as collection and payout webhooks. Keep the request body raw, then reuse `constructEvent` (or `verifySignature`) from `WebhookService`.
 

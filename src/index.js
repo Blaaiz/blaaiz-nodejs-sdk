@@ -17,6 +17,7 @@ const RateService = require('./services/RateService')
 const SwapService = require('./services/SwapService')
 const RefundService = require('./services/RefundService')
 const SignaService = require('./services/SignaService')
+const SignaIdService = require('./services/SignaIdService')
 
 class Blaaiz {
   constructor (apiKey, options = {}) {
@@ -38,6 +39,7 @@ class Blaaiz {
     this.swaps = new SwapService(this.client)
     this.refunds = new RefundService(this.client)
     this.signa = new SignaService(this.client)
+    this.signaId = new SignaIdService(this.client)
   }
 
   async testConnection () {
@@ -141,7 +143,8 @@ module.exports = {
   RateService,
   SwapService,
   RefundService,
-  SignaService
+  SignaService,
+  SignaIdService
 }
 
 module.exports.default = Blaaiz

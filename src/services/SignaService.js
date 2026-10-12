@@ -93,6 +93,15 @@ class SignaService {
     )
   }
 
+  async issueAccessToken (sessionId) {
+    this._validateSessionId(sessionId)
+
+    return this.client.makeRequest(
+      'POST',
+      `${BASE_PATH}/${encodeURIComponent(sessionId)}/access-token`
+    )
+  }
+
   async getSessionApplicantData (sessionId) {
     this._validateSessionId(sessionId)
 
